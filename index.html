@@ -7,7 +7,99 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+// ===== INLINE QR CODE ENGINE (no CDN needed) =====
+// Minimal QR Code generator — works offline and on GitHub Pages
+// Based on qrcodejs (MIT license), self-contained
+var QRCode=(function(){
+"use strict";
+var QRMode={MODE_NUMBER:1<<0,MODE_ALPHA_NUM:1<<1,MODE_8BIT_BYTE:1<<2,MODE_KANJI:1<<3};
+var QRErrorCorrectLevel={L:1,M:0,Q:3,H:2};
+function QRPolynomial(num,shift){if(num.length===undefined)throw new Error(num.length+"/"+shift);this.num=new Array(num.length+shift);for(var i=0;i<num.length;i++)this.num[i]=num[i];for(var i=num.length;i<this.num.length;i++)this.num[i]=0;}
+QRPolynomial.prototype={get:function(index){return this.num[index];},getLength:function(){return this.num.length;},multiply:function(e){var num=new Array(this.getLength()+e.getLength()-1);for(var i=0;i<this.getLength();i++)for(var j=0;j<e.getLength();j++)num[i+j]^=QRMath.gexp(QRMath.glog(this.get(i))+QRMath.glog(e.get(j)));return new QRPolynomial(num,0);},mod:function(e){if(this.getLength()-e.getLength()<0)return this;var ratio=QRMath.glog(this.get(0))-QRMath.glog(e.get(0));var num=new Array(this.getLength());for(var i=0;i<this.getLength();i++)num[i]=this.get(i);for(var i=0;i<e.getLength();i++)num[i]^=QRMath.gexp(QRMath.glog(e.get(i))+ratio);return new QRPolynomial(num,0).mod(e);}};
+var QRMath={glog:function(n){if(n<1)throw new Error("glog("+n+")");return QRMath.LOG_TABLE[n];},gexp:function(n){while(n<0)n+=255;while(n>=256)n-=255;return QRMath.EXP_TABLE[n];},EXP_TABLE:new Array(256),LOG_TABLE:new Array(256)};
+for(var i=0;i<8;i++)QRMath.EXP_TABLE[i]=1<<i;
+for(var i=8;i<256;i++)QRMath.EXP_TABLE[i]=QRMath.EXP_TABLE[i-4]^QRMath.EXP_TABLE[i-5]^QRMath.EXP_TABLE[i-6]^QRMath.EXP_TABLE[i-8];
+for(var i=0;i<255;i++)QRMath.LOG_TABLE[QRMath.EXP_TABLE[i]]=i;
+var QRRSBlock=(function(){var RS_BLOCK_TABLE=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]];
+function qrRSBlock(totalCount,dataCount){return{totalCount:totalCount,dataCount:dataCount};}
+var r=function(typeNumber,errorCorrectLevel){var t=errorCorrectLevel;var b1;var b2;var blocks=new Array();var table=RS_BLOCK_TABLE[(typeNumber-1)*4+t];if(table===undefined)throw new Error("bad rs block @ typeNumber:"+typeNumber+"/errorCorrectLevel:"+errorCorrectLevel);var length=table.length/3;for(var i=0;i<length;i++){for(var j=0;j<table[i*3+0];j++)blocks.push(qrRSBlock(table[i*3+1],table[i*3+2]));}return blocks;};
+return{getRSBlocks:r};
+})();
+function createQRData(data,typeNumber,corrLevel){
+  var _dataList=[],_dataCache=null;
+  function addData(d){_dataList.push(new QR8bitByte(d));}
+  function isDark(row,col){if(row<0||_moduleCount<=row||col<0||_moduleCount<=col)throw new Error(row+","+col);return _modules[row][col];}
+  var _typeNumber=typeNumber,_errorCorrectLevel=corrLevel;
+  var _modules=null,_moduleCount=0;
+  function QR8bitByte(d){this.mode=QRMode.MODE_8BIT_BYTE;this.data=d;this.parsedData=[];for(var i=0;i<d.length;i++){var b=d.charCodeAt(i);if(b>0xFF)this.parsedData.push(0xEF,0xBB,0xBF,(b>>>12)|0xE0,((b>>>6)&0x3F)|0x80,(b&0x3F)|0x80);else this.parsedData.push(b);}if(this.parsedData.length!==this.data.length)this.parsedData.unshift(0xEF,0xBB,0xBF);}
+  QR8bitByte.prototype={getMode:function(){return this.mode;},getLength:function(b){return this.parsedData.length;},write:function(buffer){for(var i=0;i<this.parsedData.length;i++)buffer.put(this.parsedData[i],8);}};
+  function createData(typeNumber,errorCorrectLevel,dataList){
+    var rsBlocks=QRRSBlock.getRSBlocks(typeNumber,errorCorrectLevel);
+    var buffer=new QRBitBuffer();
+    for(var i=0;i<dataList.length;i++){var data=dataList[i];buffer.put(data.getMode(),4);buffer.put(data.getLength(rsBlocks),QRUtil.getLengthInBits(data.getMode(),typeNumber));data.write(buffer);}
+    var totalDataCount=0;for(var i=0;i<rsBlocks.length;i++)totalDataCount+=rsBlocks[i].dataCount;
+    if(buffer.getLengthInBits()>totalDataCount*8)throw new Error("code length overflow.");
+    if(buffer.getLengthInBits()+4<=totalDataCount*8)buffer.put(0,4);
+    while(buffer.getLengthInBits()%8!==0)buffer.putBit(false);
+    while(true){if(buffer.getLengthInBits()>=totalDataCount*8)break;buffer.put(0xEC,8);if(buffer.getLengthInBits()>=totalDataCount*8)break;buffer.put(0x11,8);}
+    return createBytes(buffer,rsBlocks);
+  }
+  function createBytes(buffer,rsBlocks){
+    var offset=0,maxDcCount=0,maxEcCount=0,dcdata=new Array(rsBlocks.length),ecdata=new Array(rsBlocks.length);
+    for(var r=0;r<rsBlocks.length;r++){var dcCount=rsBlocks[r].dataCount,ecCount=rsBlocks[r].totalCount-dcCount;maxDcCount=Math.max(maxDcCount,dcCount);maxEcCount=Math.max(maxEcCount,ecCount);dcdata[r]=new Array(dcCount);for(var i=0;i<dcdata[r].length;i++)dcdata[r][i]=0xff&buffer.buffer[i+offset];offset+=dcCount;var rsPoly=QRUtil.getErrorCorrectPolynomial(ecCount),rawPoly=new QRPolynomial(dcdata[r],rsPoly.getLength()-1);var modPoly=rawPoly.mod(rsPoly);ecdata[r]=new Array(rsPoly.getLength()-1);for(var i=0;i<ecdata[r].length;i++){var modIndex=i+modPoly.getLength()-ecdata[r].length;ecdata[r][i]=(modIndex>=0)?modPoly.get(modIndex):0;}}
+    var totalCodeCount=0;for(var i=0;i<rsBlocks.length;i++)totalCodeCount+=rsBlocks[i].totalCount;
+    var data=new Array(totalCodeCount),index=0;
+    for(var i=0;i<maxDcCount;i++)for(var r=0;r<rsBlocks.length;r++)if(i<dcdata[r].length)data[index++]=dcdata[r][i];
+    for(var i=0;i<maxEcCount;i++)for(var r=0;r<rsBlocks.length;r++)if(i<ecdata[r].length)data[index++]=ecdata[r][i];
+    return data;
+  }
+  var QRUtil={PATTERN_POSITION_TABLE:[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,132],[6,34,60,86,112,136],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],getBCHTypeInfo:function(data){var d=data<<10;while(QRUtil.getBCHDigit(d)-QRUtil.getBCHDigit(1335)>=0)d^=(1335<<(QRUtil.getBCHDigit(d)-QRUtil.getBCHDigit(1335)));return((data<<10)|d)^21522;},getBCHTypeNumber:function(data){var d=data<<12;while(QRUtil.getBCHDigit(d)-QRUtil.getBCHDigit(7973)>=0)d^=(7973<<(QRUtil.getBCHDigit(d)-QRUtil.getBCHDigit(7973)));return(data<<12)|d;},getBCHDigit:function(data){var d=0;while(data!==0){d++;data>>>=1;}return d;},getPatternPosition:function(typeNumber){return QRUtil.PATTERN_POSITION_TABLE[typeNumber-1];},getMask:function(maskPattern,i,j){switch(maskPattern){case 0:return(i+j)%2===0;case 1:return i%2===0;case 2:return j%3===0;case 3:return(i+j)%3===0;case 4:return(Math.floor(i/2)+Math.floor(j/3))%2===0;case 5:return(i*j)%2+(i*j)%3===0;case 6:return((i*j)%2+(i*j)%3)%2===0;case 7:return((i*j)%3+(i+j)%2)%2===0;}throw new Error("bad maskPattern:"+maskPattern);},getErrorCorrectPolynomial:function(errorCorrectLength){var a=new QRPolynomial([1],0);for(var i=0;i<errorCorrectLength;i++)a=a.multiply(new QRPolynomial([1,QRMath.gexp(i)],0));return a;},getLengthInBits:function(mode,type){if(1<=type&&type<10){if(mode===QRMode.MODE_NUMBER)return 10;if(mode===QRMode.MODE_ALPHA_NUM)return 9;if(mode===QRMode.MODE_8BIT_BYTE)return 8;if(mode===QRMode.MODE_KANJI)return 8;}else if(type<27){if(mode===QRMode.MODE_NUMBER)return 12;if(mode===QRMode.MODE_ALPHA_NUM)return 11;if(mode===QRMode.MODE_8BIT_BYTE)return 16;if(mode===QRMode.MODE_KANJI)return 10;}else if(type<41){if(mode===QRMode.MODE_NUMBER)return 14;if(mode===QRMode.MODE_ALPHA_NUM)return 13;if(mode===QRMode.MODE_8BIT_BYTE)return 16;if(mode===QRMode.MODE_KANJI)return 12;}throw new Error("type:"+type);},getLostPoint:function(qrCode){var mc=qrCode.getModuleCount(),lostPoint=0;for(var row=0;row<mc;row++)for(var col=0;col<mc;col++){var sameCount=0,dark=qrCode.isDark(row,col);for(var r=-1;r<=1;r++)for(var c=-1;c<=1;c++){if(row+r<0||mc<=row+r||col+c<0||mc<=col+c)continue;if(r===0&&c===0)continue;if(dark===qrCode.isDark(row+r,col+c))sameCount++;}if(sameCount>5)lostPoint+=(3+sameCount-5);}for(var row=0;row<mc-1;row++)for(var col=0;col<mc-1;col++){var count=0;if(qrCode.isDark(row,col))count++;if(qrCode.isDark(row+1,col))count++;if(qrCode.isDark(row,col+1))count++;if(qrCode.isDark(row+1,col+1))count++;if(count===0||count===4)lostPoint+=3;}for(var row=0;row<mc;row++)for(var col=0;col<mc-6;col++)if(qrCode.isDark(row,col)&&!qrCode.isDark(row,col+1)&&qrCode.isDark(row,col+2)&&qrCode.isDark(row,col+3)&&qrCode.isDark(row,col+4)&&!qrCode.isDark(row,col+5)&&qrCode.isDark(row,col+6))lostPoint+=40;for(var col=0;col<mc;col++)for(var row=0;row<mc-6;row++)if(qrCode.isDark(row,col)&&!qrCode.isDark(row+1,col)&&qrCode.isDark(row+2,col)&&qrCode.isDark(row+3,col)&&qrCode.isDark(row+4,col)&&!qrCode.isDark(row+5,col)&&qrCode.isDark(row+6,col))lostPoint+=40;var darkCount=0;for(var col=0;col<mc;col++)for(var row=0;row<mc;row++)if(qrCode.isDark(row,col))darkCount++;lostPoint+=Math.abs(100*darkCount/mc/mc-50)/5*10;return lostPoint;}};
+  function QRBitBuffer(){this.buffer=[];this.length=0;}
+  QRBitBuffer.prototype={get:function(index){var bufIndex=Math.floor(index/8);return((this.buffer[bufIndex]>>>(7-index%8))&1)===1;},put:function(num,length){for(var i=0;i<length;i++)this.putBit(((num>>>(length-i-1))&1)===1);},getLengthInBits:function(){return this.length;},putBit:function(bit){var bufIndex=Math.floor(this.length/8);if(this.buffer.length<=bufIndex)this.buffer.push(0);if(bit)this.buffer[bufIndex]|=(0x80>>>(this.length%8));this.length++;}};
+  addData(data);
+  var _makeImpl=function(test,maskPattern){
+    _moduleCount=_typeNumber*4+17;_modules=[];for(var row=0;row<_moduleCount;row++){_modules[row]=[];for(var col=0;col<_moduleCount;col++)_modules[row][col]=null;}
+    setupPositionProbePattern(0,0);setupPositionProbePattern(_moduleCount-7,0);setupPositionProbePattern(0,_moduleCount-7);
+    setupPositionAdjustPattern();setupTimingPattern();setupTypeInfo(test,maskPattern);
+    if(_typeNumber>=7)setupTypeNumber(test);
+    if(_dataCache===null)_dataCache=createData(_typeNumber,_errorCorrectLevel,_dataList);
+    mapData(_dataCache,maskPattern);
+  };
+  function setupPositionProbePattern(row,col){for(var r=-1;r<=7;r++)for(var c=-1;c<=7;c++){if(row+r<=-1||_moduleCount<=row+r||col+c<=-1||_moduleCount<=col+c)continue;_modules[row+r][col+c]=((0<=r&&r<=6&&(c===0||c===6))||(0<=c&&c<=6&&(r===0||r===6))||(2<=r&&r<=4&&2<=c&&c<=4));}}
+  function getBestMaskPattern(){var minLostPoint=0,pattern=0;for(var i=0;i<8;i++){_makeImpl(true,i);var lostPoint=QRUtil.getLostPoint({isDark:isDark,getModuleCount:function(){return _moduleCount;}});if(i===0||minLostPoint>lostPoint){minLostPoint=lostPoint;pattern=i;}}return pattern;}
+  function setupTimingPattern(){for(var r=8;r<_moduleCount-8;r++){if(_modules[r][6]!==null)continue;_modules[r][6]=(r%2===0);}for(var c=8;c<_moduleCount-8;c++){if(_modules[6][c]!==null)continue;_modules[6][c]=(c%2===0);}}
+  function setupPositionAdjustPattern(){var pos=QRUtil.getPatternPosition(_typeNumber);for(var i=0;i<pos.length;i++)for(var j=0;j<pos.length;j++){var row=pos[i],col=pos[j];if(_modules[row][col]!==null)continue;for(var r=-2;r<=2;r++)for(var c=-2;c<=2;c++)_modules[row+r][col+c]=((r===-2||r===2||c===-2||c===2)||(r===0&&c===0));}}
+  function setupTypeNumber(test){var bits=QRUtil.getBCHTypeNumber(_typeNumber);for(var i=0;i<18;i++){var mod=(!test&&((bits>>i)&1)===1);_modules[Math.floor(i/3)][i%3+_moduleCount-8-3]=mod;}for(var i=0;i<18;i++){var mod=(!test&&((bits>>i)&1)===1);_modules[i%3+_moduleCount-8-3][Math.floor(i/3)]=mod;}}
+  function setupTypeInfo(test,maskPattern){var data=(_errorCorrectLevel<<3)|maskPattern,bits=QRUtil.getBCHTypeInfo(data);for(var i=0;i<15;i++){var mod=(!test&&((bits>>i)&1)===1);if(i<6)_modules[i][8]=mod;else if(i<8)_modules[i+1][8]=mod;else _modules[_moduleCount-15+i][8]=mod;}for(var i=0;i<15;i++){var mod=(!test&&((bits>>i)&1)===1);if(i<8)_modules[8][_moduleCount-i-1]=mod;else if(i<9)_modules[8][15-i-1+1]=mod;else _modules[8][15-i-1]=mod;}_modules[_moduleCount-8][8]=!test;}
+  function mapData(data,maskPattern){var inc=-1,row=_moduleCount-1,bitIndex=7,byteIndex=0;for(var col=_moduleCount-1;col>0;col-=2){if(col===6)col--;while(true){for(var c=0;c<2;c++){if(_modules[row][col-c]===null){var dark=false;if(byteIndex<data.length)dark=(((data[byteIndex]>>>(bitIndex))&1)===1);var mask=QRUtil.getMask(maskPattern,row,col-c);if(mask)dark=!dark;_modules[row][col-c]=dark;bitIndex--;if(bitIndex===-1){byteIndex++;bitIndex=7;}}}row+=inc;if(row<0||_moduleCount<=row){row-=inc;inc=-inc;break;}}}}
+  var mp=getBestMaskPattern();_makeImpl(false,mp);
+  return{isDark:isDark,getModuleCount:function(){return _moduleCount;}};
+}
+
+// Draw QR to canvas element
+function drawQRToCanvas(canvas,text,size){
+  size=size||200;
+  try{
+    var qr=createQRData(text,0,QRErrorCorrectLevel.M);
+    // auto type number
+    for(var t=1;t<=40;t++){try{qr=createQRData(text,t,QRErrorCorrectLevel.M);break;}catch(e){}}
+    var mc=qr.getModuleCount();
+    canvas.width=size;canvas.height=size;
+    var ctx=canvas.getContext("2d");
+    ctx.fillStyle="#ffffff";ctx.fillRect(0,0,size,size);
+    var cellSize=size/mc;
+    ctx.fillStyle="#000000";
+    for(var row=0;row<mc;row++)for(var col=0;col<mc;col++)if(qr.isDark(row,col))ctx.fillRect(col*cellSize,row*cellSize,cellSize,cellSize);
+  }catch(e){
+    var ctx=canvas.getContext("2d");
+    ctx.fillStyle="#fee2e2";ctx.fillRect(0,0,canvas.width||100,canvas.height||100);
+    ctx.fillStyle="#dc2626";ctx.font="12px sans-serif";ctx.fillText("QR Error",5,50);
+  }
+}
+return{draw:drawQRToCanvas};
+})();
+</script>
 <style>
 :root {
   /* Light vibrant palette */
@@ -453,6 +545,11 @@ tbody tr:hover td{background:#f5f3ff}
       <select class="filter-select" id="bc-flt-room" onchange="renderBarcodes()" style="width:100px"><option value="">ห้องทั้งหมด</option></select>
       <select class="filter-select" id="bc-flt-subject" onchange="renderBarcodes()" style="width:160px"><option value="">วิชาทั้งหมด</option></select>
       <div class="filter-sep"></div>
+      <span class="filter-label">รูปแบบ</span>
+      <select class="filter-select" id="bcType" onchange="renderBarcodes()" style="width:120px">
+        <option value="qr">QR Code</option>
+        <option value="code128">Code128</option>
+      </select>
       <span class="filter-label">ขนาด</span>
       <select class="filter-select" id="bcSize" onchange="renderBarcodes()" style="width:80px">
         <option value="1.4">เล็ก</option><option value="2" selected>กลาง</option><option value="2.8">ใหญ่</option>
@@ -711,10 +808,15 @@ tbody tr:hover td{background:#f5f3ff}
     <div class="modal-title" style="text-align:left">🏷️ บาร์โค้ดนักเรียน</div>
     <div id="qbcInfo" style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:left"></div>
     <div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:var(--radius-sm);padding:16px;display:inline-block;margin-bottom:16px">
-      <svg id="qbcSvg"></svg>
-      <div id="qbcName" style="font-size:13px;font-weight:700;color:#1e1b4b;margin-top:8px"></div>
-      <div id="qbcId" style="font-size:11px;color:#6366f1;font-family:'IBM Plex Mono',monospace;margin-top:2px"></div>
-      <div id="qbcMeta" style="font-size:11px;color:#9ca3af;margin-top:2px"></div>
+      <canvas id="qbcCanvas" width="180" height="180" style="display:block;margin:0 auto"></canvas>
+      <canvas id="qbcCanvas128" width="220" height="70" style="display:none;margin:0 auto"></canvas>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
+        <button class="btn" id="btnQR" style="padding:5px 12px;font-size:12px" onclick="switchQBCType('qr')">QR Code</button>
+        <button class="btn" id="btnC128" style="padding:5px 12px;font-size:12px" onclick="switchQBCType('code128')">Code128</button>
+      </div>
+      <div id="qbcName" style="font-size:13px;font-weight:700;color:#1e1b4b;margin-top:8px;text-align:center"></div>
+      <div id="qbcId" style="font-size:11px;color:#6366f1;font-family:'IBM Plex Mono',monospace;margin-top:2px;text-align:center"></div>
+      <div id="qbcMeta" style="font-size:11px;color:#9ca3af;margin-top:2px;text-align:center"></div>
     </div>
     <div class="btn-row" style="justify-content:center">
       <button class="btn" onclick="closeModal('quickBarcodeModal')">ปิด</button>
@@ -758,10 +860,14 @@ function displayCls(s){return[s.level,s.room?"/"+s.room:""].join("").trim()}
 
 // PERSIST
 function save(){
-  localStorage.setItem("gf_students",JSON.stringify(students));
-  localStorage.setItem("gf_criteria",JSON.stringify(criteria));
-  localStorage.setItem("gf_settings",JSON.stringify(settings));
-  localStorage.setItem("gf_assignments",JSON.stringify(assignments));
+  try{
+    localStorage.setItem("gf_students",JSON.stringify(students));
+    localStorage.setItem("gf_criteria",JSON.stringify(criteria));
+    localStorage.setItem("gf_settings",JSON.stringify(settings));
+    localStorage.setItem("gf_assignments",JSON.stringify(assignments));
+  }catch(e){
+    toast("⚠️ บันทึกไม่ได้: "+e.message+" (localStorage เต็มหรือถูกบล็อก)","err");
+  }
 }
 function load(){
   try{students=JSON.parse(localStorage.getItem("gf_students")||"{}")}catch(e){}
@@ -1241,7 +1347,36 @@ function renderSummary(){
   }).join("");
 }
 
-// ===== CLOUD SYNC (Google Apps Script) =====
+// ===== INLINE CODE128 BARCODE ENGINE =====
+var Code128=(function(){
+  var BARS={' ':[2,1,2,2,2,2],'!':[2,2,2,1,2,2],'"':[2,2,2,2,2,1],'#':[1,2,1,2,2,3],'$':[1,2,1,3,2,2],'%':[1,3,1,2,2,2],'&':[1,2,2,2,1,3],"'":[1,2,2,3,1,2],'(':[1,3,2,2,1,2],')':[1,1,2,2,3,2],'*':[1,2,2,1,3,2],'+':[1,2,3,2,1,2],',':[1,1,3,2,2,2],'-':[2,2,1,2,1,3],'.':[2,2,1,3,1,2],'/':[2,1,1,3,2,2],'0':[2,3,1,1,2,2],'1':[2,3,1,2,2,1],'2':[2,2,2,1,1,3],'3':[2,2,3,2,1,1],'4':[3,1,2,1,3,1],'5':[3,1,1,2,2,3],'6':[3,3,1,1,2,2],'7':[3,1,2,3,1,1],'8':[3,1,1,3,2,1],'9':[1,1,2,1,3,3],'A':[1,1,2,3,1,3],'B':[1,3,2,1,1,3],'C':[1,3,2,3,1,1],'D':[2,1,1,3,3,1],'E':[2,3,1,1,1,3],'F':[2,3,3,1,1,1],'G':[3,1,3,1,2,2],'H':[3,3,1,1,2,2],'I':[3,1,2,2,3,1],'J':[3,3,2,2,1,1],'K':[3,1,4,1,1,1],'L':[2,2,1,4,1,1],'M':[4,3,1,1,1,1],'N':[1,1,1,2,2,4],'O':[1,1,1,4,2,2],'P':[1,2,1,1,4,2],'Q':[1,2,1,2,4,1],'R':[1,4,1,2,1,2],'S':[1,4,2,1,1,2],'T':[1,1,4,2,1,2],'U':[3,1,1,1,4,1],'V':[4,1,1,1,3,1],'W':[1,1,3,1,4,1],'X':[1,1,4,1,3,1],'Y':[3,1,1,4,1,1],'Z':[4,1,1,3,1,1],'[':[1,1,1,1,4,3]};
+  var STARTB=[2,1,1,4,1,2],STOP=[2,3,3,1,1,1,2];
+  var CODES='!"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ \x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f';
+  function getVal(c){var i=CODES.indexOf(c);return i<0?0:i;}
+  function draw(canvas,text,height){
+    height=height||60;
+    var bars=[STARTB],sum=104;
+    for(var i=0;i<text.length;i++){var v=getVal(text[i])+32;sum+=v*(i+1);var c=String.fromCharCode(v+32);bars.push(BARS[c]||[2,2,2,2,2,2]);}
+    var check=(sum%103)+32;var cc=String.fromCharCode(check);bars.push(BARS[cc]||[2,2,2,2,2,2]);bars.push(STOP);
+    var totalBars=bars.reduce((a,b)=>a+b.reduce((x,y)=>x+y,0),0);
+    var scale=Math.max(1,Math.floor((canvas.width||200)/totalBars));
+    var quietZone=10;var totalW=totalBars*scale+quietZone*2;
+    canvas.width=totalW;canvas.height=height+30;
+    var ctx=canvas.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='#000';
+    var x=quietZone;
+    bars.forEach(function(bar){
+      bar.forEach(function(w,i){
+        if(i%2===0)ctx.fillRect(x,0,w*scale,height);
+        x+=w*scale;
+      });
+    });
+    ctx.fillStyle='#000';ctx.font='11px monospace';ctx.textAlign='center';
+    ctx.fillText(text,canvas.width/2,height+15);
+  }
+  return{draw:draw};
+})();
 const GAS_CODE = `const SHEET_NAME = "GradeFlowData";
 
 function doPost(e) {
@@ -1465,24 +1600,38 @@ function addStudent(printBarcode=false){
   if(printBarcode) showQuickBarcode(id);
 }
 
+let _qbcCurrentId=null;
 function showQuickBarcode(id){
   const s=students[id];
-  if(!s||!window.JsBarcode){toast("ไม่พบข้อมูล","err");return}
+  if(!s){toast("ไม่พบข้อมูล","err");return}
+  _qbcCurrentId=id;
   document.getElementById("qbcName").textContent=s.name;
   document.getElementById("qbcId").textContent=s.id;
   document.getElementById("qbcMeta").textContent=[s.level,s.room?"ห้อง "+s.room:"",s.subject].filter(Boolean).join(" · ");
   document.getElementById("qbcInfo").innerHTML=`<strong>${s.name}</strong> · รหัส <span style="font-family:monospace;color:var(--accent)">${s.id}</span>`;
   document.getElementById("quickBarcodeModal").classList.add("open");
-  setTimeout(()=>{
-    try{
-      JsBarcode("#qbcSvg",s.id,{format:"CODE128",width:2.2,height:60,displayValue:true,fontSize:13,margin:6,background:"#ffffff",lineColor:"#000000"});
-    }catch(e){toast("ไม่สามารถสร้างบาร์โค้ดได้: "+s.id,"err")}
-  },80);
+  setTimeout(()=>{ switchQBCType("qr"); },80);
 }
-
-function printQuickBarcode(){
-  window.print();
+function switchQBCType(type){
+  const id=_qbcCurrentId; if(!id) return;
+  const s=students[id]; if(!s) return;
+  const cQR=document.getElementById("qbcCanvas");
+  const c128=document.getElementById("qbcCanvas128");
+  const bQR=document.getElementById("btnQR");
+  const bC128=document.getElementById("btnC128");
+  if(type==="qr"){
+    cQR.style.display="block"; c128.style.display="none";
+    bQR.style.background="var(--accent)"; bQR.style.color="#fff"; bQR.style.borderColor="var(--accent)";
+    bC128.style.background=""; bC128.style.color=""; bC128.style.borderColor="";
+    try{ QRCode.draw(cQR,s.id,180); }catch(e){}
+  } else {
+    cQR.style.display="none"; c128.style.display="block";
+    bC128.style.background="var(--accent)"; bC128.style.color="#fff"; bC128.style.borderColor="var(--accent)";
+    bQR.style.background=""; bQR.style.color=""; bQR.style.borderColor="";
+    try{ Code128.draw(c128,s.id,50); }catch(e){}
+  }
 }
+function printQuickBarcode(){ window.print(); }
 
 // CSV
 function handleCSV(input){
@@ -1594,33 +1743,37 @@ function renderBarcodes(){
   const rm=(document.getElementById("bc-flt-room")?.value||"").toLowerCase();
   const su=(document.getElementById("bc-flt-subject")?.value||"").toLowerCase();
   const grouped=document.getElementById("bcGroupBy")?.checked;
-  const size=parseFloat(document.getElementById("bcSize")?.value||2);
+  const size=parseInt(document.getElementById("bcSize")?.value==="เล็ก"?80:document.getElementById("bcSize")?.value==="ใหญ่"?160:120);
+  const bcType=document.getElementById("bcType")?.value||"qr";
   const grid=document.getElementById("bcGrid"),empty=document.getElementById("bcEmpty");
 
   let all=Object.values(students).filter(s=>
     (!lv||((s.level||"").toLowerCase()===lv))&&
     (!rm||((s.room||"").toLowerCase()===rm))&&
     (!su||((s.subject||"").toLowerCase()===su))
-  );
+  ).sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999));
 
   if(!all.length){grid.innerHTML="";empty.style.display="block";return}
   empty.style.display="none";
+
+  const canvasW = bcType==="code128" ? 200 : 120;
+  const canvasH = bcType==="code128" ? 70 : 120;
 
   const cardHTML=s=>`
     <div class="bc-card ${bcSelected.has(s.id)?"selected":""}" id="bccard-${s.id}" onclick="bcToggle('${s.id}')">
       <div style="display:flex;align-items:center;gap:6px;width:100%;justify-content:space-between">
         <input type="checkbox" class="bc-checkbox" id="bcchk-${s.id}" ${bcSelected.has(s.id)?"checked":""}
           onclick="event.stopPropagation();bcToggle('${s.id}')">
+        <span class="bc-meta">${s.no?"#"+s.no+" · ":""}</span>
         <span class="bc-meta">${s.subject||""}</span>
       </div>
-      <div class="bc-svg"><svg id="bcsvg-${s.id}"></svg></div>
+      <div class="bc-svg"><canvas id="bcsvg-${s.id}" width="${canvasW}" height="${canvasH}"></canvas></div>
       <div class="bc-name">${s.name}</div>
       <div class="bc-id">${s.id}</div>
       <div class="bc-meta">${s.level||""}${s.room?" ห้อง "+s.room:""}</div>
     </div>`;
 
   if(grouped){
-    // group by level+room+subject
     const groups={};
     all.forEach(s=>{
       const key=`${s.level||"ไม่ระบุชั้น"}|${s.room?"ห้อง "+s.room:""}|${s.subject||"ไม่ระบุวิชา"}`;
@@ -1639,11 +1792,17 @@ function renderBarcodes(){
     grid.innerHTML=all.map(cardHTML).join("");
   }
 
-  requestAnimationFrame(()=>{
+  // Draw after DOM paint — setTimeout for Safari compatibility
+  setTimeout(()=>{
     all.forEach(s=>{
-      try{JsBarcode("#bcsvg-"+s.id,s.id,{format:"CODE128",width:size,height:48,displayValue:false,margin:4,background:"#ffffff",lineColor:"#000000"})}catch(e){}
+      const canvas=document.getElementById("bcsvg-"+s.id);
+      if(!canvas) return;
+      try{
+        if(bcType==="code128") Code128.draw(canvas,s.id,50);
+        else QRCode.draw(canvas,s.id,120);
+      }catch(e){ console.warn("Barcode draw failed",s.id,e); }
     });
-  });
+  },50);
   updateBcCount();
 }
 
