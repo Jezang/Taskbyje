@@ -859,12 +859,26 @@ function initials(name){return name?name.trim()[0]:"?"}
 function displayCls(s){return[s.level,s.room?"/"+s.room:""].join("").trim()}
 
 // PERSIST
+// gasUrl and autoSync are stored separately so Cloud sync never overwrites them
+function saveDeviceConfig(){
+  try{
+    localStorage.setItem("gf_gasUrl", settings.gasUrl||"");
+    localStorage.setItem("gf_autoSync", settings.autoSync?"1":"0");
+  }catch(e){}
+}
+function loadDeviceConfig(){
+  settings.gasUrl  = localStorage.getItem("gf_gasUrl")||"";
+  settings.autoSync= localStorage.getItem("gf_autoSync")==="1";
+}
 function save(){
   try{
+    // Strip device-only fields before syncing/saving shared data
+    const {gasUrl,autoSync,...sharedSettings}=settings;
     localStorage.setItem("gf_students",JSON.stringify(students));
     localStorage.setItem("gf_criteria",JSON.stringify(criteria));
-    localStorage.setItem("gf_settings",JSON.stringify(settings));
+    localStorage.setItem("gf_settings",JSON.stringify(sharedSettings));
     localStorage.setItem("gf_assignments",JSON.stringify(assignments));
+    saveDeviceConfig();
   }catch(e){
     toast("⚠️ บันทึกไม่ได้: "+e.message+" (localStorage เต็มหรือถูกบล็อก)","err");
   }
@@ -874,6 +888,7 @@ function load(){
   try{const c=JSON.parse(localStorage.getItem("gf_criteria"));if(c&&c.length)criteria=c}catch(e){}
   try{const s=JSON.parse(localStorage.getItem("gf_settings"));if(s)settings=Object.assign(settings,s)}catch(e){}
   try{const a=JSON.parse(localStorage.getItem("gf_assignments")||"{}");if(a)assignments=a}catch(e){}
+  loadDeviceConfig(); // always load device config last so it wins
 }
 
 // DEMO
@@ -1444,7 +1459,7 @@ async function testAndSaveGASUrl(){
     const json=await res.json();
     if(json.error) throw new Error(json.error);
     settings.gasUrl=url;
-    save();
+    saveDeviceConfig(); // save URL immediately to device-only storage
     setSyncStatus("ok","✓ เชื่อมต่อสำเร็จ"+(json.time?" · ข้อมูลล่าสุด: "+new Date(json.time).toLocaleString("th-TH"):""));
     showSyncButtons(true);
     toast("✓ เชื่อมต่อ Cloud สำเร็จ");
@@ -1488,10 +1503,16 @@ async function syncFromCloud(){
     if(json.error) throw new Error(json.error);
     if(!json.data){setSyncStatus("ok","Cloud ว่างอยู่ ยังไม่มีข้อมูล");toast("Cloud ว่างอยู่ ยังไม่มีข้อมูล","err");return}
     const d=json.data;
+    // preserve device-only config — never let cloud overwrite these
+    const savedUrl=settings.gasUrl;
+    const savedAutoSync=settings.autoSync;
     if(d.students) students=d.students;
     if(d.criteria&&d.criteria.length) criteria=d.criteria;
     if(d.assignments) assignments=d.assignments;
-    if(d.settings){const gs=d.settings;settings=Object.assign(settings,gs);}
+    if(d.settings){settings=Object.assign(settings,d.settings);}
+    // restore device config
+    settings.gasUrl=savedUrl;
+    settings.autoSync=savedAutoSync;
     save();updateStats();populateFilters();renderTable();populateAssignmentSelect();updateSidebarProfile();renderSettings();
     setSyncStatus("ok","✓ โหลดสำเร็จ · "+new Date(json.time||Date.now()).toLocaleString("th-TH"));
     toast("✓ โหลดข้อมูลจาก Cloud แล้ว");
@@ -1560,7 +1581,7 @@ function saveSettings(){
   settings.term=document.getElementById("set-term").value.trim();
   settings.autoSync=document.getElementById("set-autosync")?.checked||false;
   criteria=criteria.map((_,i)=>({name:document.getElementById("ce-name-"+i)?.value||criteria[i].name,max:parseInt(document.getElementById("ce-max-"+i)?.value)||criteria[i].max}));
-  save();updateExcelPreview();
+  save(); saveDeviceConfig(); updateExcelPreview();
   updateSidebarProfile();
   toast("✓ บันทึกการตั้งค่าแล้ว");
   if(settings.autoSync&&settings.gasUrl) syncToCloud();
