@@ -7,34 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
-<script>
-// Wrapper: draw QR Code to a canvas element using qrcode-generator library
-var QRCode = {
-  draw: function(canvas, text, size) {
-    size = size || 120;
-    try {
-      var qr = qrcode(0, 'M'); // type 0 = auto, M = medium error correction
-      qr.addData(text);
-      qr.make();
-      var mc = qr.getModuleCount();
-      canvas.width = size; canvas.height = size;
-      var ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, size, size);
-      var cell = size / mc;
-      ctx.fillStyle = '#000000';
-      for (var r = 0; r < mc; r++)
-        for (var c = 0; c < mc; c++)
-          if (qr.isDark(r, c)) ctx.fillRect(c*cell, r*cell, cell, cell);
-    } catch(e) {
-      console.error('QR draw error:', e, 'text:', text);
-      var ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fee2e2'; ctx.fillRect(0, 0, canvas.width||120, canvas.height||120);
-      ctx.fillStyle = '#dc2626'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('QR Error', (canvas.width||120)/2, (canvas.height||120)/2);
-    }
-  }
-};</script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <style>
 :root {
   /* Light vibrant palette */
@@ -480,11 +453,6 @@ tbody tr:hover td{background:#f5f3ff}
       <select class="filter-select" id="bc-flt-room" onchange="renderBarcodes()" style="width:100px"><option value="">ห้องทั้งหมด</option></select>
       <select class="filter-select" id="bc-flt-subject" onchange="renderBarcodes()" style="width:160px"><option value="">วิชาทั้งหมด</option></select>
       <div class="filter-sep"></div>
-      <span class="filter-label">รูปแบบ</span>
-      <select class="filter-select" id="bcType" onchange="renderBarcodes()" style="width:120px">
-        <option value="qr">QR Code</option>
-        <option value="code128">Code128</option>
-      </select>
       <span class="filter-label">ขนาด</span>
       <select class="filter-select" id="bcSize" onchange="renderBarcodes()" style="width:80px">
         <option value="1.4">เล็ก</option><option value="2" selected>กลาง</option><option value="2.8">ใหญ่</option>
@@ -743,15 +711,10 @@ tbody tr:hover td{background:#f5f3ff}
     <div class="modal-title" style="text-align:left">🏷️ บาร์โค้ดนักเรียน</div>
     <div id="qbcInfo" style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:left"></div>
     <div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:var(--radius-sm);padding:16px;display:inline-block;margin-bottom:16px">
-      <canvas id="qbcCanvas" width="180" height="180" style="display:block;margin:0 auto"></canvas>
-      <canvas id="qbcCanvas128" width="220" height="70" style="display:none;margin:0 auto"></canvas>
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:10px">
-        <button class="btn" id="btnQR" style="padding:5px 12px;font-size:12px" onclick="switchQBCType('qr')">QR Code</button>
-        <button class="btn" id="btnC128" style="padding:5px 12px;font-size:12px" onclick="switchQBCType('code128')">Code128</button>
-      </div>
-      <div id="qbcName" style="font-size:13px;font-weight:700;color:#1e1b4b;margin-top:8px;text-align:center"></div>
-      <div id="qbcId" style="font-size:11px;color:#6366f1;font-family:'IBM Plex Mono',monospace;margin-top:2px;text-align:center"></div>
-      <div id="qbcMeta" style="font-size:11px;color:#9ca3af;margin-top:2px;text-align:center"></div>
+      <svg id="qbcSvg"></svg>
+      <div id="qbcName" style="font-size:13px;font-weight:700;color:#1e1b4b;margin-top:8px"></div>
+      <div id="qbcId" style="font-size:11px;color:#6366f1;font-family:'IBM Plex Mono',monospace;margin-top:2px"></div>
+      <div id="qbcMeta" style="font-size:11px;color:#9ca3af;margin-top:2px"></div>
     </div>
     <div class="btn-row" style="justify-content:center">
       <button class="btn" onclick="closeModal('quickBarcodeModal')">ปิด</button>
@@ -794,36 +757,17 @@ function initials(name){return name?name.trim()[0]:"?"}
 function displayCls(s){return[s.level,s.room?"/"+s.room:""].join("").trim()}
 
 // PERSIST
-// gasUrl and autoSync are stored separately so Cloud sync never overwrites them
-function saveDeviceConfig(){
-  try{
-    localStorage.setItem("gf_gasUrl", settings.gasUrl||"");
-    localStorage.setItem("gf_autoSync", settings.autoSync?"1":"0");
-  }catch(e){}
-}
-function loadDeviceConfig(){
-  settings.gasUrl  = localStorage.getItem("gf_gasUrl")||"";
-  settings.autoSync= localStorage.getItem("gf_autoSync")==="1";
-}
 function save(){
-  try{
-    // Strip device-only fields before syncing/saving shared data
-    const {gasUrl,autoSync,...sharedSettings}=settings;
-    localStorage.setItem("gf_students",JSON.stringify(students));
-    localStorage.setItem("gf_criteria",JSON.stringify(criteria));
-    localStorage.setItem("gf_settings",JSON.stringify(sharedSettings));
-    localStorage.setItem("gf_assignments",JSON.stringify(assignments));
-    saveDeviceConfig();
-  }catch(e){
-    toast("⚠️ บันทึกไม่ได้: "+e.message+" (localStorage เต็มหรือถูกบล็อก)","err");
-  }
+  localStorage.setItem("gf_students",JSON.stringify(students));
+  localStorage.setItem("gf_criteria",JSON.stringify(criteria));
+  localStorage.setItem("gf_settings",JSON.stringify(settings));
+  localStorage.setItem("gf_assignments",JSON.stringify(assignments));
 }
 function load(){
   try{students=JSON.parse(localStorage.getItem("gf_students")||"{}")}catch(e){}
   try{const c=JSON.parse(localStorage.getItem("gf_criteria"));if(c&&c.length)criteria=c}catch(e){}
   try{const s=JSON.parse(localStorage.getItem("gf_settings"));if(s)settings=Object.assign(settings,s)}catch(e){}
   try{const a=JSON.parse(localStorage.getItem("gf_assignments")||"{}");if(a)assignments=a}catch(e){}
-  loadDeviceConfig(); // always load device config last so it wins
 }
 
 // DEMO
@@ -884,11 +828,7 @@ function goto(page){
   document.querySelectorAll(".nav-item")[map.indexOf(page)]?.classList.add("active");
   if(page==="students"){populateFilters();renderTable()}
   if(page==="summary"){populateFilters();renderSummary()}
-  if(page==="barcodes"){
-    populateFilters();
-    // small delay ensures DOM is ready and dropdowns are populated
-    setTimeout(renderBarcodes, 30);
-  }
+  if(page==="barcodes"){populateFilters();renderBarcodes()}
   if(page==="settings")renderSettings();
 }
 
@@ -1169,52 +1109,15 @@ function saveGrade(){
     gradedDate:document.getElementById("scanDate")?.value||"",
     assignmentName:assignments[currentAssignmentId]?.name||""
   };
+  // also update legacy graded flag for summary/table compat
   students[currentId].graded=true;
   students[currentId].scores=scores;
   students[currentId].gradedDate=document.getElementById("scanDate")?.value||"";
   save();updateStats();populateFilters();
   playBeepSave();
-  // Show success popup first, then clear
-  const name=students[currentId].name;
-  const asgn=assignments[currentAssignmentId]?.name||"";
-  const total=scores.reduce((a,b)=>a+b,0);
-  const pct=Math.round(total/totalMax()*100);
-  showSuccessPopup(name,asgn,total,totalMax(),pct);
-  toast("✓ บันทึกคะแนน "+name+" แล้ว");
-  setTimeout(()=>{
-    clearScan();
-    if(settings.autoSync&&settings.gasUrl) syncToCloud();
-  },1800);
-}
-
-function showSuccessPopup(name,asgn,score,max,pct){
-  let popup=document.getElementById("successPopup");
-  if(!popup){
-    popup=document.createElement("div");
-    popup.id="successPopup";
-    popup.style.cssText="position:fixed;top:50%;left:50%;transform:translate(-50%,-60%);z-index:500;background:#fff;border-radius:20px;padding:32px 40px;text-align:center;box-shadow:0 24px 64px rgba(99,102,241,0.25);border:2px solid #c4b5fd;animation:slide-up .2s ease;min-width:280px;pointer-events:none";
-    document.body.appendChild(popup);
-  }
-  const grade=pct>=80?"A":pct>=70?"B":pct>=60?"C":"F";
-  const gradeColor={A:"#16a34a",B:"#4f46e5",C:"#d97706",F:"#dc2626"}[grade];
-  popup.innerHTML=`
-    <div style="font-size:48px;margin-bottom:8px">✅</div>
-    <div style="font-size:18px;font-weight:700;color:#1e1b4b;margin-bottom:4px">บันทึกเรียบร้อย!</div>
-    <div style="font-size:15px;color:#6366f1;font-weight:600;margin-bottom:8px">${name}</div>
-    <div style="font-size:13px;color:#6b7280;margin-bottom:12px">${asgn}</div>
-    <div style="font-size:32px;font-weight:700;font-family:monospace;color:${gradeColor}">${score}<span style="font-size:16px;color:#9ca3af"> / ${max}</span></div>
-    <div style="font-size:13px;color:#9ca3af;margin-top:4px">${pct}% · เกรด <strong style="color:${gradeColor}">${grade}</strong></div>
-  `;
-  popup.style.display="block";
-  popup.style.opacity="1";
-  popup.style.transform="translate(-50%,-50%)";
-  clearTimeout(popup._t);
-  popup._t=setTimeout(()=>{
-    popup.style.transition="opacity .4s,transform .4s";
-    popup.style.opacity="0";
-    popup.style.transform="translate(-50%,-60%)";
-    setTimeout(()=>{ popup.style.display="none"; popup.style.transition=""; },400);
-  },1600);
+  toast("✓ บันทึกคะแนน "+students[currentId].name+" ("+assignments[currentAssignmentId]?.name+") แล้ว");
+  clearScan();
+  if(settings.autoSync&&settings.gasUrl) syncToCloud();
 }
 
 function clearScan(){currentId=null;barcodeInput.value="";studentPanel.classList.remove("show");barcodeInput.focus()}
@@ -1226,9 +1129,9 @@ function getFilteredStudents(levelId,roomId,subjectId,searchId){
   const su=(document.getElementById(subjectId)?.value||"").toLowerCase();
   const q=(document.getElementById(searchId)?.value||"").toLowerCase();
   return Object.values(students).filter(s=>
-    (!lv||((s.level||"").toLowerCase()===lv))&&
-    (!rm||((s.room||"").toLowerCase()===rm))&&
-    (!su||((s.subject||"").toLowerCase()===su))&&
+    (!lv||((s.level||"").trim().toLowerCase()===lv))&&
+    (!rm||((s.room||"").trim().toLowerCase()===rm))&&
+    (!su||((s.subject||"").trim().toLowerCase()===su))&&
     (!q||(s.name||"").toLowerCase().includes(q)||(s.id||"").toLowerCase().includes(q))
   );
 }
@@ -1338,36 +1241,7 @@ function renderSummary(){
   }).join("");
 }
 
-// ===== INLINE CODE128 BARCODE ENGINE =====
-var Code128=(function(){
-  var BARS={' ':[2,1,2,2,2,2],'!':[2,2,2,1,2,2],'"':[2,2,2,2,2,1],'#':[1,2,1,2,2,3],'$':[1,2,1,3,2,2],'%':[1,3,1,2,2,2],'&':[1,2,2,2,1,3],"'":[1,2,2,3,1,2],'(':[1,3,2,2,1,2],')':[1,1,2,2,3,2],'*':[1,2,2,1,3,2],'+':[1,2,3,2,1,2],',':[1,1,3,2,2,2],'-':[2,2,1,2,1,3],'.':[2,2,1,3,1,2],'/':[2,1,1,3,2,2],'0':[2,3,1,1,2,2],'1':[2,3,1,2,2,1],'2':[2,2,2,1,1,3],'3':[2,2,3,2,1,1],'4':[3,1,2,1,3,1],'5':[3,1,1,2,2,3],'6':[3,3,1,1,2,2],'7':[3,1,2,3,1,1],'8':[3,1,1,3,2,1],'9':[1,1,2,1,3,3],'A':[1,1,2,3,1,3],'B':[1,3,2,1,1,3],'C':[1,3,2,3,1,1],'D':[2,1,1,3,3,1],'E':[2,3,1,1,1,3],'F':[2,3,3,1,1,1],'G':[3,1,3,1,2,2],'H':[3,3,1,1,2,2],'I':[3,1,2,2,3,1],'J':[3,3,2,2,1,1],'K':[3,1,4,1,1,1],'L':[2,2,1,4,1,1],'M':[4,3,1,1,1,1],'N':[1,1,1,2,2,4],'O':[1,1,1,4,2,2],'P':[1,2,1,1,4,2],'Q':[1,2,1,2,4,1],'R':[1,4,1,2,1,2],'S':[1,4,2,1,1,2],'T':[1,1,4,2,1,2],'U':[3,1,1,1,4,1],'V':[4,1,1,1,3,1],'W':[1,1,3,1,4,1],'X':[1,1,4,1,3,1],'Y':[3,1,1,4,1,1],'Z':[4,1,1,3,1,1],'[':[1,1,1,1,4,3]};
-  var STARTB=[2,1,1,4,1,2],STOP=[2,3,3,1,1,1,2];
-  var CODES='!"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ \x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x7f';
-  function getVal(c){var i=CODES.indexOf(c);return i<0?0:i;}
-  function draw(canvas,text,height){
-    height=height||60;
-    var bars=[STARTB],sum=104;
-    for(var i=0;i<text.length;i++){var v=getVal(text[i])+32;sum+=v*(i+1);var c=String.fromCharCode(v+32);bars.push(BARS[c]||[2,2,2,2,2,2]);}
-    var check=(sum%103)+32;var cc=String.fromCharCode(check);bars.push(BARS[cc]||[2,2,2,2,2,2]);bars.push(STOP);
-    var totalBars=bars.reduce((a,b)=>a+b.reduce((x,y)=>x+y,0),0);
-    var scale=Math.max(1,Math.floor((canvas.width||200)/totalBars));
-    var quietZone=10;var totalW=totalBars*scale+quietZone*2;
-    canvas.width=totalW;canvas.height=height+30;
-    var ctx=canvas.getContext('2d');
-    ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
-    ctx.fillStyle='#000';
-    var x=quietZone;
-    bars.forEach(function(bar){
-      bar.forEach(function(w,i){
-        if(i%2===0)ctx.fillRect(x,0,w*scale,height);
-        x+=w*scale;
-      });
-    });
-    ctx.fillStyle='#000';ctx.font='11px monospace';ctx.textAlign='center';
-    ctx.fillText(text,canvas.width/2,height+15);
-  }
-  return{draw:draw};
-})();
+// ===== CLOUD SYNC (Google Apps Script) =====
 const GAS_CODE = `const SHEET_NAME = "GradeFlowData";
 
 function doPost(e) {
@@ -1435,7 +1309,7 @@ async function testAndSaveGASUrl(){
     const json=await res.json();
     if(json.error) throw new Error(json.error);
     settings.gasUrl=url;
-    saveDeviceConfig(); // save URL immediately to device-only storage
+    save();
     setSyncStatus("ok","✓ เชื่อมต่อสำเร็จ"+(json.time?" · ข้อมูลล่าสุด: "+new Date(json.time).toLocaleString("th-TH"):""));
     showSyncButtons(true);
     toast("✓ เชื่อมต่อ Cloud สำเร็จ");
@@ -1479,16 +1353,10 @@ async function syncFromCloud(){
     if(json.error) throw new Error(json.error);
     if(!json.data){setSyncStatus("ok","Cloud ว่างอยู่ ยังไม่มีข้อมูล");toast("Cloud ว่างอยู่ ยังไม่มีข้อมูล","err");return}
     const d=json.data;
-    // preserve device-only config — never let cloud overwrite these
-    const savedUrl=settings.gasUrl;
-    const savedAutoSync=settings.autoSync;
     if(d.students) students=d.students;
     if(d.criteria&&d.criteria.length) criteria=d.criteria;
     if(d.assignments) assignments=d.assignments;
-    if(d.settings){settings=Object.assign(settings,d.settings);}
-    // restore device config
-    settings.gasUrl=savedUrl;
-    settings.autoSync=savedAutoSync;
+    if(d.settings){const gs=d.settings;settings=Object.assign(settings,gs);}
     save();updateStats();populateFilters();renderTable();populateAssignmentSelect();updateSidebarProfile();renderSettings();
     setSyncStatus("ok","✓ โหลดสำเร็จ · "+new Date(json.time||Date.now()).toLocaleString("th-TH"));
     toast("✓ โหลดข้อมูลจาก Cloud แล้ว");
@@ -1504,23 +1372,17 @@ function copyGASCode(){
   navigator.clipboard.writeText(GAS_CODE).then(()=>toast("✓ คัดลอกโค้ดแล้ว")).catch(()=>toast("คัดลอกไม่ได้ — กรุณาเลือกและคัดลอกเอง","err"));
 }
 
-// ===== HARDCODED GAS URL — เปลี่ยนตรงนี้ครั้งเดียว ไม่ต้องวางซ้ำอีก =====
-const HARDCODED_GAS_URL = "https://script.google.com/macros/s/AKfycbzDfSPeu6oEdLw7kVoAKzfGoEwDSQ2l_NBtP6hitm1ZUqokd7lMpRUs_zhN_vAWNiG7/exec";
-
 function initCloudUI(){
-  // ถ้ายังไม่มี URL ใน device config ให้ใช้ค่าที่ฝังไว้
-  if(!settings.gasUrl && HARDCODED_GAS_URL){
-    settings.gasUrl = HARDCODED_GAS_URL;
-    saveDeviceConfig();
-  }
+  // populate code block
   const cb=document.getElementById("gasCodeBlock");
   if(cb) cb.textContent=GAS_CODE;
+  // restore URL
   const urlEl=document.getElementById("set-gas-url");
-  if(urlEl) urlEl.value=settings.gasUrl||"";
+  if(urlEl&&settings.gasUrl) urlEl.value=settings.gasUrl;
   const autoEl=document.getElementById("set-autosync");
   if(autoEl) autoEl.checked=!!settings.autoSync;
   if(settings.gasUrl){
-    setSyncStatus("ok","✓ เชื่อมต่ออยู่อัตโนมัติ · กด 'อัปโหลด/โหลด' เพื่อ Sync");
+    setSyncStatus("ok","เชื่อมต่ออยู่ · กด 'อัปโหลด/โหลด' เพื่อ Sync");
     showSyncButtons(true);
   }
 }
@@ -1563,7 +1425,7 @@ function saveSettings(){
   settings.term=document.getElementById("set-term").value.trim();
   settings.autoSync=document.getElementById("set-autosync")?.checked||false;
   criteria=criteria.map((_,i)=>({name:document.getElementById("ce-name-"+i)?.value||criteria[i].name,max:parseInt(document.getElementById("ce-max-"+i)?.value)||criteria[i].max}));
-  save(); saveDeviceConfig(); updateExcelPreview();
+  save();updateExcelPreview();
   updateSidebarProfile();
   toast("✓ บันทึกการตั้งค่าแล้ว");
   if(settings.autoSync&&settings.gasUrl) syncToCloud();
@@ -1603,38 +1465,24 @@ function addStudent(printBarcode=false){
   if(printBarcode) showQuickBarcode(id);
 }
 
-let _qbcCurrentId=null;
 function showQuickBarcode(id){
   const s=students[id];
-  if(!s){toast("ไม่พบข้อมูล","err");return}
-  _qbcCurrentId=id;
+  if(!s||!window.JsBarcode){toast("ไม่พบข้อมูล","err");return}
   document.getElementById("qbcName").textContent=s.name;
   document.getElementById("qbcId").textContent=s.id;
   document.getElementById("qbcMeta").textContent=[s.level,s.room?"ห้อง "+s.room:"",s.subject].filter(Boolean).join(" · ");
   document.getElementById("qbcInfo").innerHTML=`<strong>${s.name}</strong> · รหัส <span style="font-family:monospace;color:var(--accent)">${s.id}</span>`;
   document.getElementById("quickBarcodeModal").classList.add("open");
-  setTimeout(()=>{ switchQBCType("qr"); },80);
+  setTimeout(()=>{
+    try{
+      JsBarcode("#qbcSvg",s.id,{format:"CODE128",width:2.2,height:60,displayValue:true,fontSize:13,margin:6,background:"#ffffff",lineColor:"#000000"});
+    }catch(e){toast("ไม่สามารถสร้างบาร์โค้ดได้: "+s.id,"err")}
+  },80);
 }
-function switchQBCType(type){
-  const id=_qbcCurrentId; if(!id) return;
-  const s=students[id]; if(!s) return;
-  const cQR=document.getElementById("qbcCanvas");
-  const c128=document.getElementById("qbcCanvas128");
-  const bQR=document.getElementById("btnQR");
-  const bC128=document.getElementById("btnC128");
-  if(type==="qr"){
-    cQR.style.display="block"; c128.style.display="none";
-    bQR.style.background="var(--accent)"; bQR.style.color="#fff"; bQR.style.borderColor="var(--accent)";
-    bC128.style.background=""; bC128.style.color=""; bC128.style.borderColor="";
-    try{ QRCode.draw(cQR,s.id,180); }catch(e){}
-  } else {
-    cQR.style.display="none"; c128.style.display="block";
-    bC128.style.background="var(--accent)"; bC128.style.color="#fff"; bC128.style.borderColor="var(--accent)";
-    bQR.style.background=""; bQR.style.color=""; bQR.style.borderColor="";
-    try{ Code128.draw(c128,s.id,50); }catch(e){}
-  }
+
+function printQuickBarcode(){
+  window.print();
 }
-function printQuickBarcode(){ window.print(); }
 
 // CSV
 function handleCSV(input){
@@ -1742,52 +1590,37 @@ function clearAllStudents(){if(!confirm("ลบนักเรียนทั้
 let bcSelected=new Set();
 
 function renderBarcodes(){
-  const lv=(document.getElementById("bc-flt-level")?.value||"").toLowerCase();
-  const rm=(document.getElementById("bc-flt-room")?.value||"").toLowerCase();
-  const su=(document.getElementById("bc-flt-subject")?.value||"").toLowerCase();
+  const lv=(document.getElementById("bc-flt-level")?.value||"").trim().toLowerCase();
+  const rm=(document.getElementById("bc-flt-room")?.value||"").trim().toLowerCase();
+  const su=(document.getElementById("bc-flt-subject")?.value||"").trim().toLowerCase();
   const grouped=document.getElementById("bcGroupBy")?.checked;
-  const sizeVal=document.getElementById("bcSize")?.value||"2";
-  const sizeNum=parseFloat(sizeVal)||2; // barcode width multiplier
-  const bcType=document.getElementById("bcType")?.value||"qr";
-  const canvasPx=bcType==="code128"?200:120; // canvas pixel size
+  const size=parseFloat(document.getElementById("bcSize")?.value||2);
   const grid=document.getElementById("bcGrid"),empty=document.getElementById("bcEmpty");
 
-  const allStudents=Object.values(students);
-  // if no students at all show empty
-  if(!allStudents.length){grid.innerHTML="";empty.style.display="block";return}
+  let all=Object.values(students).filter(s=>
+    (!lv||((s.level||"").trim().toLowerCase()===lv))&&
+    (!rm||((s.room||"").trim().toLowerCase()===rm))&&
+    (!su||((s.subject||"").trim().toLowerCase()===su))
+  );
 
-  // filter — if dropdown is blank/not populated, show ALL
-  let all=allStudents.filter(s=>
-    (!lv||((s.level||"").toLowerCase()===lv))&&
-    (!rm||((s.room||"").toLowerCase()===rm))&&
-    (!su||((s.subject||"").toLowerCase()===su))
-  ).sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999));
-
-  // fallback: if filter removed everyone, show all (happens when dropdowns not populated yet)
-  if(!all.length && (lv||rm||su)){
-    all=allStudents.sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999));
-  }
-
+  if(!all.length){grid.innerHTML="";empty.style.display="block";return}
   empty.style.display="none";
-
-  const canvasW = bcType==="code128" ? 200 : 120;
-  const canvasH = bcType==="code128" ? 70 : 120;
 
   const cardHTML=s=>`
     <div class="bc-card ${bcSelected.has(s.id)?"selected":""}" id="bccard-${s.id}" onclick="bcToggle('${s.id}')">
       <div style="display:flex;align-items:center;gap:6px;width:100%;justify-content:space-between">
         <input type="checkbox" class="bc-checkbox" id="bcchk-${s.id}" ${bcSelected.has(s.id)?"checked":""}
           onclick="event.stopPropagation();bcToggle('${s.id}')">
-        <span class="bc-meta">${s.no?"#"+s.no+" · ":""}</span>
         <span class="bc-meta">${s.subject||""}</span>
       </div>
-      <div class="bc-svg"><canvas id="bcsvg-${s.id}" width="${canvasW}" height="${canvasH}"></canvas></div>
+      <div class="bc-svg"><svg id="bcsvg-${s.id}"></svg></div>
       <div class="bc-name">${s.name}</div>
       <div class="bc-id">${s.id}</div>
       <div class="bc-meta">${s.level||""}${s.room?" ห้อง "+s.room:""}</div>
     </div>`;
 
   if(grouped){
+    // group by level+room+subject
     const groups={};
     all.forEach(s=>{
       const key=`${s.level||"ไม่ระบุชั้น"}|${s.room?"ห้อง "+s.room:""}|${s.subject||"ไม่ระบุวิชา"}`;
@@ -1809,12 +1642,7 @@ function renderBarcodes(){
   // Draw after DOM paint — setTimeout for Safari compatibility
   setTimeout(()=>{
     all.forEach(s=>{
-      const canvas=document.getElementById("bcsvg-"+s.id);
-      if(!canvas) return;
-      try{
-        if(bcType==="code128") Code128.draw(canvas,s.id,50);
-        else QRCode.draw(canvas,s.id,120);
-      }catch(e){ console.warn("Barcode draw failed",s.id,e); }
+      try{JsBarcode("#bcsvg-"+s.id,s.id,{format:"CODE128",width:size,height:48,displayValue:false,margin:4,background:"#ffffff",lineColor:"#000000"})}catch(e){}
     });
   },50);
   updateBcCount();
