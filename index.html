@@ -801,7 +801,7 @@ function populateFilters(){
   const fillSel=(id,vals)=>{
     const el=document.getElementById(id);if(!el)return;
     const cur=el.value;
-    el.innerHTML='<option value="">'+el.options[0]?.text+'</option>'+vals.map(v=>`<option${v===cur?' selected':''}>${v}</option>`).join("");
+    el.innerHTML='<option value="">'+el.options[0]?.text+'</option>'+vals.map(v=>`<option value="${v}"${v===cur?' selected':''}>${v}</option>`).join("");
   };
   ["flt-level","sum-flt-level","bc-flt-level"].forEach(id=>fillSel(id,levels));
   ["flt-room","sum-flt-room","bc-flt-room"].forEach(id=>fillSel(id,rooms));
@@ -1129,14 +1129,15 @@ function clearScan(){currentId=null;barcodeInput.value="";studentPanel.classList
 
 // TABLE
 function getFilteredStudents(levelId,roomId,subjectId,searchId){
-  const lv=(document.getElementById(levelId)?.value||"").toLowerCase();
-  const rm=(document.getElementById(roomId)?.value||"").toLowerCase();
-  const su=(document.getElementById(subjectId)?.value||"").toLowerCase();
+  const norm=str=>str.trim().toLowerCase().normalize("NFC");
+  const lv=norm(document.getElementById(levelId)?.value||"");
+  const rm=norm(document.getElementById(roomId)?.value||"");
+  const su=norm(document.getElementById(subjectId)?.value||"");
   const q=(document.getElementById(searchId)?.value||"").toLowerCase();
   return Object.values(students).filter(s=>
-    (!lv||((s.level||"").trim().toLowerCase()===lv))&&
-    (!rm||((s.room||"").trim().toLowerCase()===rm))&&
-    (!su||((s.subject||"").trim().toLowerCase()===su))&&
+    (!lv||(norm(s.level||"")===lv))&&
+    (!rm||(norm(s.room||"")===rm))&&
+    (!su||(norm(s.subject||"")===su))&&
     (!q||(s.name||"").toLowerCase().includes(q)||(s.id||"").toLowerCase().includes(q))
   );
 }
@@ -1602,10 +1603,11 @@ function renderBarcodes(){
   const size=parseFloat(document.getElementById("bcSize")?.value||2);
   const grid=document.getElementById("bcGrid"),empty=document.getElementById("bcEmpty");
 
+  const norm=str=>str.trim().toLowerCase().normalize("NFC");
   let all=Object.values(students).filter(s=>
-    (!lv||((s.level||"").trim().toLowerCase()===lv))&&
-    (!rm||((s.room||"").trim().toLowerCase()===rm))&&
-    (!su||((s.subject||"").trim().toLowerCase()===su))
+    (!lv||(norm(s.level||"")===norm(lv)))&&
+    (!rm||(norm(s.room||"")===norm(rm)))&&
+    (!su||(norm(s.subject||"")===norm(su)))
   );
 
   if(!all.length){grid.innerHTML="";empty.style.display="block";return}
