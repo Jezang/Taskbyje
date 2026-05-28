@@ -442,6 +442,7 @@ tbody tr:hover td{background:#f5f3ff}
     <div style="display:flex;gap:10px">
       <button class="btn" onclick="bcSelectAll()">☑ สลับเลือก</button>
       <button class="btn btn-primary" onclick="printBarcodes()">🖨️ พิมพ์ที่เลือก</button>
+      <button class="btn" style="background:var(--accent2,#7c3aed);color:#fff" onclick="printAllBarcodes()">🖨️ พิมพ์ทั้งหมด</button>
     </div>
   </div>
 
@@ -731,6 +732,7 @@ tbody tr:hover td{background:#f5f3ff}
 <div class="toast" id="toastEl"></div>
 
 <script>
+var bcSelected = new Set(); // MUST be first — used in cardHTML template before other declarations
 // ===== DATA =====
 let students = {};
 let criteria = [
@@ -743,7 +745,6 @@ let criteria = [
 let settings = {teacher:"",school:"",dept:"",term:"1/2568"};
 let currentId = null;
 let importBuffer = [];
-var bcSelected = new Set();
 
 // ASSIGNMENTS
 let assignments = {}; // id -> {id, name, maxScore, weight, desc, criteria:[{name,max}]}
@@ -1730,6 +1731,41 @@ function printBarcodes(){
 
 function closePrintOverlay(){
   document.getElementById("printOverlay").style.display="none";
+}
+
+function printAllBarcodes(){
+  const size=parseFloat(document.getElementById("bcSize")?.value||2);
+  const cols=parseInt(document.getElementById("bcCols")?.value||4);
+  const lv=(document.getElementById("bc-flt-level")?.value||"").trim();
+  const rm=(document.getElementById("bc-flt-room")?.value||"").trim();
+  const su=(document.getElementById("bc-flt-subject")?.value||"").trim();
+  const norm=str=>str.trim().toLowerCase().normalize("NFC");
+  const all=Object.values(students).filter(s=>
+    (!lv||(norm(s.level||"")===norm(lv)))&&
+    (!rm||(norm(s.room||"")===norm(rm)))&&
+    (!su||(norm(s.subject||"")===norm(su)))
+  );
+  if(!all.length){toast("ไม่มีนักเรียนที่ตรงกับตัวกรอง","err");return}
+
+  const grid=document.getElementById("printGrid");
+  grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  grid.innerHTML=all.map(s=>`
+    <div class="print-card" style="border:1px solid #ccc;border-radius:6px;padding:8px;text-align:center;">
+      <svg id="psvg-${s.id}"></svg>
+      <div style="font-size:13px;font-weight:700;margin-top:4px;word-break:break-all">${s.name}</div>
+      <div style="font-size:11px;color:#666">${s.id}</div>
+      <div style="font-size:10px;color:#888">${s.level||""}${s.room?" ห้อง "+s.room:""}</div>
+      <div style="font-size:10px;color:#888">${s.subject||""}</div>
+    </div>`).join("");
+
+  document.getElementById("printCount").textContent=all.length;
+  document.getElementById("printOverlay").style.display="block";
+
+  setTimeout(()=>{
+    all.forEach(s=>{
+      try{JsBarcode("#psvg-"+s.id,s.id,{format:"CODE128",width:size,height:48,displayValue:false,margin:4,background:"#ffffff",lineColor:"#000000"});}catch(e){}
+    });
+  },80);
 }
 
 // KEYBOARD
