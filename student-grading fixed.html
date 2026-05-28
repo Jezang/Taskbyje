@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบตรวจงานนักเรียน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<style>
+:root {
+  /* Light vibrant palette */
+  --bg:#f0f4ff;
+  --bg2:#ffffff;
+  --bg3:#eef1fb;
+  --card:#ffffff;
+  --border:rgba(99,102,241,0.12);
+  --border2:rgba(99,102,241,0.25);
+  --text:#1e1b4b;
+  --text2:#6b7280;
+  --text3:#9ca3af;
+  --accent:#6366f1;
+  --accent2:#4f46e5;
+  --accent-glow:rgba(99,102,241,0.25);
+  --green:#16a34a;
+  --green-dim:#dcfce7;
+  --amber:#d97706;
+  --amber-dim:#fef3c7;
+  --red:#dc2626;
+  --red-dim:#fee2e2;
+  --blue-dim:#ede9fe;
+  --radius:14px;
+  --radius-sm:9px;
+  --sidebar-bg:linear-gradient(160deg,#4f46e5 0%,#7c3aed 60%,#a855f7 100%);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+.app{display:flex;min-height:100vh}
+
+/* SIDEBAR — vivid gradient */
+.sidebar{width:240px;min-height:100vh;background:var(--sidebar-bg);border-right:none;display:flex;flex-direction:column;position:fixed;left:0;top:0;bottom:0;overflow-y:auto;box-shadow:4px 0 24px rgba(99,102,241,0.2)}
+.main{margin-left:240px;padding:32px;min-height:100vh}
+
+.logo{padding:24px 20px 20px;border-bottom:1px solid rgba(255,255,255,0.15)}
+.logo-icon{width:40px;height:40px;background:rgba(255,255,255,0.2);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,0,0,0.15);backdrop-filter:blur(4px)}
+.logo-title{font-size:15px;font-weight:700;color:#fff}
+.logo-sub{font-size:12px;color:rgba(255,255,255,0.65);margin-top:2px}
+
+.nav{padding:16px 12px;flex:1}
+.nav-section{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:rgba(255,255,255,0.45);padding:8px 12px 4px;margin-top:4px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-sm);cursor:pointer;color:rgba(255,255,255,0.7);font-size:14px;margin-bottom:3px;transition:all .15s}
+.nav-item:hover{background:rgba(255,255,255,0.15);color:#fff}
+.nav-item.active{background:rgba(255,255,255,0.22);color:#fff;font-weight:600;box-shadow:inset 0 0 0 1px rgba(255,255,255,0.25)}
+.nav-icon{font-size:17px;width:22px;text-align:center}
+
+.sidebar-stats{padding:12px 16px;border-top:1px solid rgba(255,255,255,0.15)}
+.mini-stat{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px}
+.mini-stat-label{color:rgba(255,255,255,0.6)}
+.mini-stat-val{font-weight:700;font-family:'IBM Plex Mono',monospace;color:#fff}
+.sidebar-bottom{padding:16px;border-top:1px solid rgba(255,255,255,0.15)}
+
+/* FILTER BAR */
+.filter-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;box-shadow:0 1px 6px rgba(99,102,241,0.07)}
+.filter-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+.filter-select,.filter-input{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);padding:7px 12px;font-family:'Sarabun',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
+.filter-select:focus,.filter-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.1)}
+.filter-sep{width:1px;height:24px;background:var(--border2)}
+
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.page-title{font-size:22px;font-weight:700;color:var(--text)}
+.page-sub{font-size:13px;color:var(--text2);margin-top:4px}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:0 2px 12px rgba(99,102,241,0.06)}
+
+/* STAT CARDS — colorful */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.08)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-card.blue{background:linear-gradient(135deg,#ede9fe,#e0e7ff);border:1px solid #c7d2fe}
+.stat-card.blue::before{background:linear-gradient(90deg,#6366f1,#818cf8)}
+.stat-card.green{background:linear-gradient(135deg,#dcfce7,#d1fae5);border:1px solid #a7f3d0}
+.stat-card.green::before{background:linear-gradient(90deg,#16a34a,#22c55e)}
+.stat-card.amber{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #fcd34d}
+.stat-card.amber::before{background:linear-gradient(90deg,#d97706,#f59e0b)}
+.stat-card.red{background:linear-gradient(135deg,#fee2e2,#fecaca);border:1px solid #fca5a5}
+.stat-card.red::before{background:linear-gradient(90deg,#dc2626,#ef4444)}
+.stat-num{font-size:28px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.stat-num.blue{color:#4338ca}
+.stat-num.green{color:#15803d}
+.stat-num.amber{color:#b45309}
+.stat-num.red{color:#b91c1c}
+.stat-label{font-size:11px;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.6px}
+
+/* SCAN */
+.scan-zone{border:2px dashed #c7d2fe;border-radius:var(--radius);padding:36px 24px;text-align:center;background:linear-gradient(135deg,#f5f3ff,#ede9fe);transition:all .2s;position:relative;overflow:hidden;cursor:pointer}
+.scan-zone.focused{border-color:var(--accent);background:linear-gradient(135deg,#ede9fe,#ddd6fe);box-shadow:0 0 0 4px rgba(99,102,241,0.15)}
+.scan-zone::after{content:'';position:absolute;left:-100%;top:0;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(99,102,241,0.08),transparent);animation:scan-sweep 2s infinite}
+@keyframes scan-sweep{to{left:150%}}
+.scan-icon{font-size:48px;margin-bottom:12px;opacity:.5}
+.scan-title{font-size:16px;font-weight:600;margin-bottom:6px;color:var(--text)}
+.scan-hint{font-size:13px;color:var(--text2)}
+.barcode-input{width:100%;font-size:24px;font-family:'IBM Plex Mono',monospace;text-align:center;letter-spacing:6px;background:transparent;border:none;outline:none;color:var(--accent);margin:14px 0 6px;caret-color:var(--accent)}
+.barcode-input::placeholder{color:#c4b5fd;letter-spacing:2px;font-size:18px}
+
+.student-panel{margin-top:20px;display:none;animation:slide-up .25s ease}
+.student-panel.show{display:block}
+@keyframes slide-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.student-info{display:flex;align-items:center;gap:16px;padding:16px 20px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #ddd6fe;border-radius:var(--radius-sm);margin-bottom:16px}
+.student-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#a855f7);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;flex-shrink:0;box-shadow:0 4px 12px rgba(99,102,241,0.35)}
+.student-name{font-size:17px;font-weight:600;color:var(--text)}
+.student-meta{font-size:13px;color:var(--text2);margin-top:3px}
+.student-status{margin-left:auto}
+.meta-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6}
+
+/* GRADING */
+.criteria-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.criteria-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fafafa;border-radius:var(--radius-sm);border:1px solid var(--border);transition:all .15s}
+.criteria-row:focus-within{border-color:var(--accent);background:#f5f3ff;box-shadow:0 0 0 3px rgba(99,102,241,0.08)}
+.criteria-name{flex:1;font-size:14px;color:var(--text)}
+.criteria-max{font-size:12px;color:var(--text2)}
+.score-inp{width:72px;text-align:center;background:#fff;border:1.5px solid #c4b5fd;border-radius:var(--radius-sm);padding:7px 10px;color:var(--accent);font-size:16px;font-weight:700;font-family:'IBM Plex Mono',monospace;outline:none;transition:all .15s}
+.score-inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.12)}
+.score-bar{width:80px;height:5px;background:#e0e7ff;border-radius:3px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),#a855f7);transition:width .3s}
+.total-section{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(135deg,#ede9fe,#e0e7ff);border:1px solid #c4b5fd;border-radius:var(--radius-sm);margin-bottom:16px}
+.total-label{font-size:15px;font-weight:600;color:var(--text)}
+.total-val{font-size:26px;font-weight:700;font-family:'IBM Plex Mono',monospace;color:var(--accent)}
+.total-pct{font-size:13px;color:var(--text2)}
+.full-progress{height:8px;background:#e0e7ff;border-radius:4px;overflow:hidden;margin-top:10px}
+.full-progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#6366f1,#a855f7,#ec4899);transition:width .4s}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--radius-sm);border:1.5px solid #c4b5fd;background:#fff;color:var(--accent);font-family:'Sarabun',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn:hover{background:#f5f3ff;border-color:var(--accent)}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:linear-gradient(135deg,#6366f1,#7c3aed);border-color:transparent;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,0.3)}
+.btn-primary:hover{background:linear-gradient(135deg,#4f46e5,#6d28d9);box-shadow:0 6px 18px rgba(99,102,241,0.4);color:#fff}
+.btn-success{background:linear-gradient(135deg,#16a34a,#22c55e);border-color:transparent;color:#fff;box-shadow:0 4px 12px rgba(22,163,74,0.25)}
+.btn-success:hover{background:linear-gradient(135deg,#15803d,#16a34a);color:#fff}
+.btn-danger{background:#fff;border-color:#fca5a5;color:var(--red)}
+.btn-danger:hover{background:#fee2e2}
+.btn-row{display:flex;gap:10px;justify-content:flex-end}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700;font-family:'IBM Plex Mono',monospace}
+.badge-A{background:#dcfce7;color:#15803d;border:1px solid #86efac}
+.badge-B{background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd}
+.badge-C{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+.badge-F{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+.badge-pending{background:#f3f4f6;color:var(--text2);border:1px solid #d1d5db}
+
+/* TABLE */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead tr{border-bottom:2px solid #e0e7ff}
+th{padding:10px 14px;text-align:left;font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;font-weight:700}
+td{padding:11px 14px;font-size:14px;border-bottom:1px solid #e0e7ff;vertical-align:middle;color:var(--text)}
+tbody tr{transition:background .1s}
+tbody tr:hover td{background:#f5f3ff}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:13px}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(79,70,229,0.15);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border:1.5px solid #c4b5fd;border-radius:var(--radius);padding:28px;width:460px;max-height:90vh;overflow-y:auto;animation:slide-up .2s ease;box-shadow:0 20px 60px rgba(99,102,241,0.2)}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text)}
+.form-group{margin-bottom:14px}
+.form-label{font-size:13px;color:var(--text2);margin-bottom:6px;display:block;font-weight:500}
+.form-input,.form-select{width:100%;padding:9px 12px;background:var(--bg3);border:1.5px solid #c4b5fd;border-radius:var(--radius-sm);color:var(--text);font-family:'Sarabun',sans-serif;font-size:15px;outline:none;transition:all .15s}
+.form-input:focus,.form-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(99,102,241,0.12)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* DIST CHART */
+.dist-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:13px}
+.dist-label{min-width:90px;color:var(--text2)}
+.dist-bar{flex:1;height:22px;background:#e0e7ff;border-radius:4px;overflow:hidden;position:relative}
+.dist-fill{height:100%;border-radius:4px;transition:width .5s ease}
+.dist-count{min-width:30px;text-align:right;font-family:'IBM Plex Mono',monospace;font-weight:700}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;padding:13px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;z-index:999;transform:translateY(20px);opacity:0;pointer-events:none;transition:all .25s;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15)}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.ok{background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff}
+.toast.err{background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff}
+
+.page{display:none}
+.page.active{display:block}
+.empty-state{text-align:center;padding:40px;color:var(--text2);font-size:14px}
+.empty-icon{font-size:40px;margin-bottom:10px;opacity:.4}
+
+/* IMPORT */
+.import-zone{border:2px dashed #c4b5fd;border-radius:var(--radius);padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:#faf8ff}
+.import-zone:hover{border-color:var(--accent);background:#ede9fe}
+
+/* SETTINGS */
+.criteria-editor{display:flex;flex-direction:column;gap:8px}
+.criteria-edit-row{display:flex;gap:8px;align-items:center;background:var(--bg3);padding:10px 12px;border-radius:var(--radius-sm);border:1px solid var(--border)}
+.criteria-edit-row input{background:#fff;border:1.5px solid #c4b5fd;border-radius:6px;padding:6px 10px;color:var(--text);font-family:'Sarabun',sans-serif;font-size:14px;outline:none}
+.criteria-edit-row input:focus{border-color:var(--accent)}
+.criteria-edit-name{flex:1}
+.criteria-edit-max{width:70px;text-align:center;font-family:'IBM Plex Mono',monospace}
+
+/* BARCODE PAGE */
+.bc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.bc-card{background:#fff;border:2px solid #e0e7ff;border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;cursor:pointer;transition:all .15s;box-shadow:0 2px 8px rgba(99,102,241,0.07)}
+.bc-card:hover{border-color:#a5b4fc;box-shadow:0 4px 16px rgba(99,102,241,0.15)}
+.bc-card.selected{border-color:var(--accent);background:linear-gradient(135deg,#f5f3ff,#ede9fe);box-shadow:0 4px 16px rgba(99,102,241,0.2)}
+.bc-name{font-size:12px;font-weight:700;text-align:center;color:var(--text)}
+.bc-id{font-size:11px;color:var(--accent);font-family:'IBM Plex Mono',monospace}
+.bc-meta{font-size:11px;color:var(--text2);text-align:center}
+.bc-svg{background:#fff;border-radius:6px;padding:6px 8px;border:1px solid #e0e7ff}
+.bc-checkbox{cursor:pointer;width:16px;height:16px;accent-color:var(--accent)}
+.bc-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:14px 0 4px}
+
+/* GROUP HEADER in bc-grid */
+.bc-group-header{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:8px 0 4px;border-bottom:2px solid #e0e7ff;margin-top:8px}
+.bc-group-title{font-size:14px;font-weight:700;color:var(--accent)}
+.bc-group-count{font-size:12px;color:var(--text2)}
+
+@media(max-width:900px){
+  .sidebar{width:56px}
+  .sidebar .logo-title,.sidebar .logo-sub,.nav-item span,.nav-section,.sidebar-stats,.sidebar-bottom{display:none}
+  .main{margin-left:56px;padding:20px}
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .bc-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+@media print{
+  body{background:#fff!important}
+  .sidebar,.page-header,.bc-controls,.no-print{display:none!important}
+  .main{margin-left:0!important;padding:8mm!important}
+  .bc-grid{grid-template-columns:repeat(4,1fr);gap:6px}
+  .bc-card{background:#fff!important;border:1px solid #ccc!important;break-inside:avoid;page-break-inside:avoid;box-shadow:none!important}
+  .bc-card:not(.selected){display:none!important}
+  .bc-group-header{border-color:#ccc}
+  .bc-checkbox{display:none!important}
+  /* quick barcode print */
+  .modal-overlay:not(#quickBarcodeModal){display:none!important}
+  #quickBarcodeModal{position:fixed!important;inset:0!important;background:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;backdrop-filter:none!important}
+  #quickBarcodeModal .modal{box-shadow:none!important;border:none!important}
+  #quickBarcodeModal .btn-row{display:none!important}
+  #quickBarcodeModal .modal-title{display:none!important}
+  #quickBarcodeModal #qbcInfo{display:none!important}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">📋</div>
+    <div class="logo-title">GradeFlow</div>
+    <div class="logo-sub" id="sidebar-teacher-name">ยังไม่ได้ตั้งค่า</div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:1px" id="sidebar-school-name"></div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">หลัก</div>
+    <div class="nav-item active" onclick="goto('scan')"><span class="nav-icon">📷</span><span>สแกนตรวจงาน</span></div>
+    <div class="nav-item" onclick="goto('students')"><span class="nav-icon">👥</span><span>รายชื่อนักเรียน</span></div>
+    <div class="nav-item" onclick="goto('summary')"><span class="nav-icon">📊</span><span>สรุปผลคะแนน</span></div>
+    <div class="nav-item" onclick="goto('barcodes')"><span class="nav-icon">🏷️</span><span>พิมพ์บาร์โค้ด</span></div>
+    <div class="nav-section">ระบบ</div>
+    <div class="nav-item" onclick="goto('settings')"><span class="nav-icon">⚙️</span><span>ตั้งค่า</span></div>
+  </nav>
+  <div class="sidebar-stats">
+    <div class="mini-stat"><span class="mini-stat-label">ทั้งหมด</span><span class="mini-stat-val" id="sb-total">0</span></div>
+    <div class="mini-stat"><span class="mini-stat-label">ตรวจแล้ว</span><span class="mini-stat-val" style="color:var(--green)" id="sb-done">0</span></div>
+    <div class="mini-stat"><span class="mini-stat-label">รอตรวจ</span><span class="mini-stat-val" style="color:var(--amber)" id="sb-pend">0</span></div>
+  </div>
+  <div class="sidebar-bottom">
+    <button class="btn btn-success" style="width:100%;justify-content:center" onclick="exportExcel()">📥 Export Excel</button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- ===== SCAN PAGE ===== -->
+<div class="page active" id="page-scan">
+  <div class="page-header">
+    <div><div class="page-title">สแกนตรวจงาน</div><div class="page-sub">เลือกงาน → ยิงบาร์โค้ด → กรอกคะแนน</div></div>
+    <button class="btn btn-primary" onclick="openNewAssignment()">+ สร้างงานใหม่</button>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card blue"><div class="stat-num blue" id="st-total">0</div><div class="stat-label">นักเรียนทั้งหมด</div></div>
+    <div class="stat-card green"><div class="stat-num green" id="st-done">0</div><div class="stat-label">ตรวจแล้ว</div></div>
+    <div class="stat-card amber"><div class="stat-num amber" id="st-avg">—</div><div class="stat-label">คะแนนเฉลี่ย %</div></div>
+    <div class="stat-card red"><div class="stat-num red" id="st-pend">0</div><div class="stat-label">รอตรวจ</div></div>
+  </div>
+
+  <!-- ASSIGNMENT PICKER -->
+  <div class="card" style="margin-bottom:14px;padding:16px">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:13px;font-weight:600;color:var(--text2);white-space:nowrap">📋 งานที่ตรวจ</span>
+      <select id="assignmentSelect" class="filter-select" style="flex:1;min-width:200px;font-size:15px;font-weight:600;color:var(--accent)" onchange="onAssignmentChange()">
+        <option value="">— เลือกงาน —</option>
+      </select>
+      <button class="btn" onclick="openEditAssignment()" id="editAssignBtn" style="display:none">✏️ แก้ไขงาน</button>
+      <button class="btn btn-danger" onclick="deleteAssignment()" id="delAssignBtn" style="display:none;padding:9px 12px">🗑️</button>
+      <div class="filter-sep"></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:13px;color:var(--text2)">📅</div>
+        <input type="date" id="scanDate" class="filter-select" style="width:150px;font-size:14px">
+        <div style="font-size:13px;color:var(--text2)" id="scanTimeDisplay"></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text2);background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px">
+        <input type="checkbox" id="soundToggle" checked style="accent-color:var(--accent);width:15px;height:15px">
+        🔊 เสียง
+      </label>
+    </div>
+    <!-- assignment info strip -->
+    <div id="assignmentInfo" style="display:none;margin-top:12px;padding:10px 14px;background:var(--blue-dim);border-radius:var(--radius-sm);border:1px solid #c4b5fd;display:flex;align-items:center;gap:14px;flex-wrap:wrap"></div>
+  </div>
+
+  <div class="card">
+    <div class="scan-zone" id="scanZone" onclick="document.getElementById('barcodeInput').focus()">
+      <div class="scan-icon">🔍</div>
+      <div class="scan-title">วางบาร์โค้ดสแกนเนอร์ที่นี่</div>
+      <input id="barcodeInput" class="barcode-input" placeholder="รหัสนักเรียน..." autocomplete="off" autofocus>
+      <div class="scan-hint">กด Enter หลังพิมพ์ หรือยิงบาร์โค้ดแล้วระบบค้นหาอัตโนมัติ</div>
+    </div>
+    <div class="student-panel" id="studentPanel">
+      <div class="student-info">
+        <div class="student-avatar" id="panelAvatar">ส</div>
+        <div style="flex:1">
+          <div class="student-name" id="panelName">—</div>
+          <div class="meta-chips" id="panelChips"></div>
+        </div>
+        <div class="student-status" id="panelStatus"></div>
+      </div>
+      <div class="criteria-list" id="criteriaList"></div>
+      <div class="total-section">
+        <div><div class="total-label">คะแนนรวม</div><div class="total-pct" id="totalPct">0%</div></div>
+        <div style="text-align:right"><div class="total-val" id="totalVal">0</div><div class="total-pct" id="totalMax">/ 100</div></div>
+      </div>
+      <div class="full-progress"><div class="full-progress-fill" id="fullProgress" style="width:0%"></div></div>
+      <div class="btn-row" style="margin-top:16px">
+        <button class="btn btn-danger" onclick="clearScan()">✕ ยกเลิก</button>
+        <button class="btn btn-primary" onclick="saveGrade()">✓ บันทึกคะแนน</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STUDENTS PAGE ===== -->
+<div class="page" id="page-students">
+  <div class="page-header">
+    <div><div class="page-title">รายชื่อนักเรียน</div><div class="page-sub">จัดการข้อมูลนักเรียนทั้งหมด</div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" onclick="openImport()">📂 นำเข้า CSV</button>
+      <button class="btn btn-primary" onclick="openAdd()">+ เพิ่มนักเรียน</button>
+    </div>
+  </div>
+
+  <!-- FILTER BAR -->
+  <div class="filter-bar no-print">
+    <span class="filter-label">กรอง</span>
+    <select class="filter-select" id="flt-level" onchange="renderTable()" style="width:110px">
+      <option value="">ชั้นทั้งหมด</option>
+    </select>
+    <select class="filter-select" id="flt-room" onchange="renderTable()" style="width:100px">
+      <option value="">ห้องทั้งหมด</option>
+    </select>
+    <select class="filter-select" id="flt-subject" onchange="renderTable()" style="width:160px">
+      <option value="">วิชาทั้งหมด</option>
+    </select>
+    <div class="filter-sep"></div>
+    <input class="filter-input" id="flt-search" placeholder="🔍 ค้นหาชื่อ/รหัส..." oninput="renderTable()" style="width:200px">
+    <button class="btn" onclick="resetFilters()" style="padding:7px 12px;font-size:13px">✕ ล้าง</button>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>ลำดับ</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>ชั้น</th><th>ห้อง</th><th>วิชา</th>
+          <th>คะแนนรวม</th><th>%</th><th>เกรด</th><th>สถานะ</th><th></th>
+        </tr></thead>
+        <tbody id="studentTable"></tbody>
+      </table>
+    </div>
+    <div id="emptyStudents" class="empty-state" style="display:none">
+      <div class="empty-icon">👥</div>
+      ยังไม่มีรายชื่อนักเรียน<br>
+      <button class="btn btn-primary" style="margin-top:14px" onclick="openAdd()">+ เพิ่มนักเรียนคนแรก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SUMMARY PAGE ===== -->
+<div class="page" id="page-summary">
+  <div class="page-header">
+    <div><div class="page-title">สรุปผลคะแนน</div><div class="page-sub">ภาพรวมผลการตรวจงาน</div></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <select class="filter-select" id="sum-flt-level" onchange="renderSummary()" style="width:120px"><option value="">ชั้นทั้งหมด</option></select>
+      <select class="filter-select" id="sum-flt-room" onchange="renderSummary()" style="width:110px"><option value="">ห้องทั้งหมด</option></select>
+      <select class="filter-select" id="sum-flt-subject" onchange="renderSummary()" style="width:160px"><option value="">วิชาทั้งหมด</option></select>
+      <button class="btn btn-success" onclick="exportExcel()">📥 Export Excel</button>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-card green"><div class="stat-num green" id="sum-a">0</div><div class="stat-label">เกรด A (≥80%)</div></div>
+    <div class="stat-card blue"><div class="stat-num blue" id="sum-b">0</div><div class="stat-label">เกรด B (70–79%)</div></div>
+    <div class="stat-card amber"><div class="stat-num amber" id="sum-c">0</div><div class="stat-label">เกรด C (60–69%)</div></div>
+    <div class="stat-card red"><div class="stat-num red" id="sum-f">0</div><div class="stat-label">ต่ำกว่า 60%</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">การกระจายคะแนน</div>
+      <div id="distChart"></div>
+    </div>
+    <div class="card">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">🏆 Top 10 คะแนนสูงสุด</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>ชื่อ</th><th>ชั้น/ห้อง</th><th>คะแนน</th><th>เกรด</th></tr></thead>
+          <tbody id="topTable"></tbody>
+        </table>
+      </div>
+      <div id="emptyTop" class="empty-state" style="display:none;padding:20px">ยังไม่มีข้อมูล</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div style="font-size:15px;font-weight:600;margin-bottom:16px">คะแนนเฉลี่ยแยกตามเกณฑ์</div>
+    <div id="criteriaAvgChart"></div>
+  </div>
+</div>
+
+<!-- ===== BARCODES PAGE ===== -->
+<div class="page" id="page-barcodes">
+  <div class="page-header no-print">
+    <div><div class="page-title">พิมพ์บาร์โค้ดนักเรียน</div><div class="page-sub">เลือกนักเรียนแล้วพิมพ์ติดหน้างาน</div></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn" onclick="bcSelectAll()">☑ สลับเลือก</button>
+      <button class="btn btn-primary" onclick="printBarcodes()">🖨️ พิมพ์ที่เลือก</button>
+    </div>
+  </div>
+
+  <div class="card no-print" style="margin-bottom:16px">
+    <div class="bc-controls">
+      <label style="display:flex;align-items:center;gap:7px;font-size:14px;cursor:pointer;color:var(--text2)">
+        <input type="checkbox" id="selectAllCb" style="width:16px;height:16px;accent-color:var(--accent)" onchange="bcToggleAll(this.checked)">
+        เลือกทั้งหมด
+      </label>
+      <span style="color:var(--text2);font-size:13px" id="bcSelCount">เลือก 0 คน</span>
+      <div style="flex:1"></div>
+      <span class="filter-label">กรอง</span>
+      <select class="filter-select" id="bc-flt-level" onchange="renderBarcodes()" style="width:110px"><option value="">ชั้นทั้งหมด</option></select>
+      <select class="filter-select" id="bc-flt-room" onchange="renderBarcodes()" style="width:100px"><option value="">ห้องทั้งหมด</option></select>
+      <select class="filter-select" id="bc-flt-subject" onchange="renderBarcodes()" style="width:160px"><option value="">วิชาทั้งหมด</option></select>
+      <div class="filter-sep"></div>
+      <span class="filter-label">ขนาด</span>
+      <select class="filter-select" id="bcSize" onchange="renderBarcodes()" style="width:80px">
+        <option value="1.4">เล็ก</option><option value="2" selected>กลาง</option><option value="2.8">ใหญ่</option>
+      </select>
+      <span class="filter-label">คอลัมน์</span>
+      <select class="filter-select" id="bcCols" onchange="updateBcCols()" style="width:100px">
+        <option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;color:var(--text2)">
+        <input type="checkbox" id="bcGroupBy" style="accent-color:var(--accent)" onchange="renderBarcodes()"> จัดกลุ่ม
+      </label>
+    </div>
+  </div>
+
+  <div class="bc-grid" id="bcGrid"></div>
+  <div id="bcEmpty" class="empty-state" style="display:none">
+    <div class="empty-icon">🏷️</div>
+    ยังไม่มีนักเรียนในระบบ<br>
+    <button class="btn btn-primary" style="margin-top:14px" onclick="goto('students')">ไปเพิ่มนักเรียน</button>
+  </div>
+</div>
+
+<!-- ===== SETTINGS PAGE ===== -->
+<div class="page" id="page-settings">
+  <div class="page-header">
+    <div><div class="page-title">ตั้งค่าระบบ</div><div class="page-sub">กำหนดข้อมูลครู โรงเรียน เกณฑ์คะแนน และ Cloud Sync</div></div>
+    <button class="btn btn-primary" onclick="saveSettings()">💾 บันทึก</button>
+  </div>
+
+  <!-- CLOUD SYNC CARD -->
+  <div class="card" style="margin-bottom:16px;border:1.5px solid #c4b5fd;background:linear-gradient(135deg,#faf8ff,#f5f3ff)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div style="font-size:28px">☁️</div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#4f46e5">Google Sheets Cloud Sync</div>
+        <div style="font-size:13px;color:var(--text2)">แชร์ข้อมูลระหว่างครูหลายคนแบบ Real-time ผ่าน Google Sheets</div>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+        <div id="syncStatusDot" style="width:10px;height:10px;border-radius:50%;background:#d1d5db"></div>
+        <span id="syncStatusText" style="font-size:13px;color:var(--text2)">ยังไม่ได้เชื่อมต่อ</span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-bottom:12px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label">Google Apps Script URL</label>
+        <input class="form-input" id="set-gas-url" placeholder="https://script.google.com/macros/s/.../exec" style="font-size:13px;font-family:monospace">
+      </div>
+      <button class="btn btn-primary" onclick="testAndSaveGASUrl()" style="white-space:nowrap">🔗 เชื่อมต่อ</button>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn" onclick="syncToCloud()" id="btn-push" style="display:none">
+        <span id="pushIcon">⬆️</span> อัปโหลดขึ้น Cloud
+      </button>
+      <button class="btn" onclick="syncFromCloud()" id="btn-pull" style="display:none">
+        <span id="pullIcon">⬇️</span> โหลดจาก Cloud
+      </button>
+      <label style="display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer;color:var(--text2)" id="lbl-autosync" style="display:none">
+        <input type="checkbox" id="set-autosync" style="accent-color:var(--accent)" onchange="saveSettings()">
+        Sync อัตโนมัติเมื่อบันทึก
+      </label>
+    </div>
+
+    <div id="syncLog" style="font-size:12px;color:var(--text2);font-family:monospace;padding:8px 10px;background:rgba(99,102,241,0.06);border-radius:6px;min-height:28px;display:none"></div>
+
+    <!-- GUIDE -->
+    <details style="margin-top:14px">
+      <summary style="font-size:13px;font-weight:600;color:#7c3aed;cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px">
+        📖 วิธีตั้งค่า Google Apps Script (คลิกเพื่อดู)
+      </summary>
+      <div style="margin-top:12px;font-size:13px;color:var(--text2);line-height:1.8;background:#fff;border-radius:8px;padding:14px;border:1px solid #e0e7ff">
+        <div style="font-weight:700;color:#1e1b4b;margin-bottom:8px">ขั้นตอนที่ 1 — สร้าง Google Apps Script</div>
+        <ol style="padding-left:18px;display:flex;flex-direction:column;gap:6px">
+          <li>ไปที่ <a href="https://script.google.com" target="_blank" style="color:#6366f1">script.google.com</a> → กด <strong>New project</strong></li>
+          <li>ลบโค้ดเดิมทั้งหมด แล้ววางโค้ดด้านล่างแทน</li>
+          <li>กด <strong>Deploy → New deployment</strong></li>
+          <li>Type: <strong>Web app</strong> · Execute as: <strong>Me</strong> · Access: <strong>Anyone</strong></li>
+          <li>กด <strong>Deploy</strong> → คัดลอก URL → วางในช่องด้านบน</li>
+        </ol>
+        <div style="font-weight:700;color:#1e1b4b;margin:12px 0 6px">โค้ดที่ต้องวาน (คัดลอกทั้งหมด)</div>
+        <pre id="gasCodeBlock" style="background:#1e1b4b;color:#a5b4fc;padding:12px;border-radius:8px;font-size:11px;overflow-x:auto;line-height:1.6;white-space:pre-wrap"></pre>
+        <button class="btn" style="margin-top:8px;font-size:12px" onclick="copyGASCode()">📋 คัดลอกโค้ด</button>
+        <div style="margin-top:10px;padding:8px 10px;background:#fef3c7;border-radius:6px;border:1px solid #fcd34d;color:#92400e;font-size:12px">
+          ⚠️ ข้อมูลทั้งหมดจะเข้ารหัสก่อนส่งขึ้น Cloud ผู้ที่รู้ URL เท่านั้นถึงจะเข้าถึงได้
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">🏫 ข้อมูลครูและโรงเรียน</div>
+      <div class="form-group"><label class="form-label">ชื่อครูผู้สอน</label><input class="form-input" id="set-teacher" placeholder="เช่น นายสมชาย ใจดี"></div>
+      <div class="form-group"><label class="form-label">ชื่อโรงเรียน</label><input class="form-input" id="set-school" placeholder="เช่น โรงเรียนสมชายวิทยา"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">กลุ่มสาระ / แผนก</label><input class="form-input" id="set-dept" placeholder="เช่น วิทยาศาสตร์และเทคโนโลยี"></div>
+        <div class="form-group"><label class="form-label">ภาคเรียน / ปีการศึกษา</label><input class="form-input" id="set-term" placeholder="เช่น 1/2568"></div>
+      </div>
+      <div style="margin-top:8px;padding:12px 14px;background:var(--blue-dim);border-radius:var(--radius-sm);border:1px solid #c4b5fd">
+        <div style="font-size:12px;color:#7c3aed;font-weight:600;margin-bottom:4px">📋 ตัวอย่างหัว Excel ที่จะได้</div>
+        <div style="font-size:12px;color:var(--text2)" id="excelPreview"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:15px;font-weight:600;margin-bottom:4px">เกณฑ์การให้คะแนน (ค่าเริ่มต้น)</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:14px">ใช้เมื่อไม่ได้เลือกงาน · คะแนนรวม: <span id="criteriaTotal" style="color:var(--accent);font-weight:600">100</span> คะแนน</div>
+      <div class="criteria-editor" id="criteriaEditor"></div>
+      <div style="margin-top:12px"><button class="btn" onclick="addCriterion()" style="width:100%;justify-content:center">+ เพิ่มเกณฑ์</button></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div style="font-size:15px;font-weight:600;margin-bottom:12px;color:var(--red)">⚠️ โซนอันตราย</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-danger" onclick="clearAllGrades()">🗑️ ล้างคะแนนทั้งหมด</button>
+      <button class="btn btn-danger" onclick="clearAllStudents()">🗑️ ลบนักเรียนทั้งหมด</button>
+      <span style="font-size:13px;color:var(--text2)">การดำเนินการนี้ไม่สามารถย้อนกลับได้</span>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-title">➕ เพิ่มนักเรียนใหม่</div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">เลขที่</label><input class="form-input" id="add-no" placeholder="เช่น 1, 2, 3" type="number" min="1"></div>
+      <div class="form-group"><label class="form-label">รหัสนักเรียน (บาร์โค้ด) *</label><input class="form-input" id="add-id" placeholder="เช่น 67001"></div>
+    </div>
+    <div class="form-group"><label class="form-label">ชื่อ-สกุล *</label><input class="form-input" id="add-name" placeholder="เช่น นายสมชาย ใจดี"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ชั้นเรียน</label>
+        <select class="form-select" id="add-level">
+          <option value="">เลือกชั้น</option>
+          <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+          <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+          <option>ป.1</option><option>ป.2</option><option>ป.3</option>
+          <option>ป.4</option><option>ป.5</option><option>ป.6</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">ห้อง</label>
+        <input class="form-input" id="add-room" placeholder="เช่น 1, 2, 3">
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">วิชา *</label>
+      <input class="form-input" id="add-subject" placeholder="เช่น วิทยาการคำนวณ" list="subject-list">
+      <datalist id="subject-list"></datalist>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('addModal')">ยกเลิก</button>
+      <button class="btn" onclick="addStudent(true)">🏷️ เพิ่ม + พิมพ์บาร์โค้ด</button>
+      <button class="btn btn-primary" onclick="addStudent(false)">เพิ่มนักเรียน</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-title">✏️ แก้ไขข้อมูลนักเรียน</div>
+    <input type="hidden" id="edit-id">
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">เลขที่</label><input class="form-input" id="edit-no" type="number" min="1" placeholder="เช่น 1"></div>
+      <div class="form-group"><label class="form-label">รหัสนักเรียน</label><input class="form-input" id="edit-id-show" disabled style="opacity:.6"></div>
+    </div>
+    <div class="form-group"><label class="form-label">ชื่อ-สกุล *</label><input class="form-input" id="edit-name"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">ชั้นเรียน</label>
+        <select class="form-select" id="edit-level">
+          <option value="">เลือกชั้น</option>
+          <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+          <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+          <option>ป.1</option><option>ป.2</option><option>ป.3</option>
+          <option>ป.4</option><option>ป.5</option><option>ป.6</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">ห้อง</label><input class="form-input" id="edit-room" placeholder="เช่น 1, 2, 3"></div>
+    </div>
+    <div class="form-group"><label class="form-label">วิชา</label>
+      <input class="form-input" id="edit-subject" list="subject-list">
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('editModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveEdit()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="importModal">
+  <div class="modal" style="width:500px">
+    <div class="modal-title">📂 นำเข้าจาก CSV</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
+      รูปแบบ CSV: <span style="color:var(--accent);font-family:monospace">เลขที่,รหัส,ชื่อ-สกุล,ชั้น,ห้อง,วิชา</span>
+    </div>
+    <div class="import-zone" onclick="document.getElementById('csvFile').click()">
+      <div style="font-size:32px;margin-bottom:8px">📄</div>
+      <div style="font-weight:600">คลิกเพื่อเลือกไฟล์ CSV</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:4px">หรือลากไฟล์มาวางที่นี่</div>
+    </div>
+    <input type="file" id="csvFile" accept=".csv,.txt" style="display:none" onchange="handleCSV(this)">
+    <div id="importPreview" style="margin-top:14px;display:none">
+      <div style="font-size:13px;color:var(--green);margin-bottom:8px" id="importMsg"></div>
+      <div class="btn-row">
+        <button class="btn" onclick="closeModal('importModal')">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="doImport()">นำเข้า</button>
+      </div>
+    </div>
+    <div class="btn-row" id="importCancel" style="margin-top:14px">
+      <button class="btn" onclick="closeModal('importModal')">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="assignmentModal">
+  <div class="modal" style="width:520px">
+    <div class="modal-title" id="assignmentModalTitle">📋 สร้างงานใหม่</div>
+    <input type="hidden" id="assign-edit-id">
+    <div class="form-group">
+      <label class="form-label">ชื่องาน *</label>
+      <input class="form-input" id="assign-name" placeholder="เช่น งานชิ้นที่ 1: รายงานกลุ่ม">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">คะแนนเต็ม *</label>
+        <input class="form-input" id="assign-maxscore" type="number" min="1" max="1000" placeholder="100" oninput="onAssignMaxChange()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">น้ำหนัก / สัดส่วน</label>
+        <input class="form-input" id="assign-weight" type="number" min="0" max="100" placeholder="เช่น 20 (%)">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">คำอธิบาย (ไม่บังคับ)</label>
+      <input class="form-input" id="assign-desc" placeholder="เช่น ส่งภายใน 10 มี.ค. 2568">
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;margin-top:4px">
+      <div>
+        <div style="font-size:14px;font-weight:600">เกณฑ์ย่อยการให้คะแนน</div>
+        <div style="font-size:12px;color:var(--text2)">รวมต้องเท่ากับคะแนนเต็ม: <span id="assign-criteria-sum" style="font-weight:700;color:var(--accent)">0</span> / <span id="assign-criteria-max">100</span></div>
+      </div>
+      <button class="btn" style="padding:6px 12px;font-size:13px" onclick="addAssignCriterion()">+ เพิ่มเกณฑ์</button>
+    </div>
+    <div id="assignCriteriaEditor" style="display:flex;flex-direction:column;gap:7px;max-height:260px;overflow-y:auto;margin-bottom:16px"></div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('assignmentModal')">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveAssignment()">บันทึกงาน</button>
+    </div>
+  </div>
+</div>
+
+<!-- QUICK BARCODE MODAL -->
+<div class="modal-overlay" id="quickBarcodeModal">
+  <div class="modal" style="width:340px;text-align:center">
+    <div class="modal-title" style="text-align:left">🏷️ บาร์โค้ดนักเรียน</div>
+    <div id="qbcInfo" style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:left"></div>
+    <div style="background:#fff;border:1.5px solid #e0e7ff;border-radius:var(--radius-sm);padding:16px;display:inline-block;margin-bottom:16px">
+      <svg id="qbcSvg"></svg>
+      <div id="qbcName" style="font-size:13px;font-weight:700;color:#1e1b4b;margin-top:8px"></div>
+      <div id="qbcId" style="font-size:11px;color:#6366f1;font-family:'IBM Plex Mono',monospace;margin-top:2px"></div>
+      <div id="qbcMeta" style="font-size:11px;color:#9ca3af;margin-top:2px"></div>
+    </div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn" onclick="closeModal('quickBarcodeModal')">ปิด</button>
+      <button class="btn btn-primary" onclick="printQuickBarcode()">🖨️ พิมพ์</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== DATA =====
+let students = {};
+let criteria = [
+  {name:"ความถูกต้องของเนื้อหา",max:30},
+  {name:"การวิเคราะห์และความคิดสร้างสรรค์",max:25},
+  {name:"การนำเสนอและรูปแบบ",max:20},
+  {name:"ความสมบูรณ์ของงาน",max:15},
+  {name:"ส่งตรงเวลา",max:10}
+];
+let settings = {teacher:"",school:"",dept:"",term:"1/2568"};
+let currentId = null;
+let importBuffer = [];
+
+// ASSIGNMENTS
+let assignments = {}; // id -> {id, name, maxScore, weight, desc, criteria:[{name,max}]}
+let currentAssignmentId = null; // which assignment is selected in scan page
+let assignTempCriteria = []; // temp while editing in modal
+
+function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+// Active criteria = from selected assignment, or global criteria
+function activeCriteria(){ return currentAssignmentId && assignments[currentAssignmentId] ? assignments[currentAssignmentId].criteria : criteria; }
+function totalMax(){ return activeCriteria().reduce((s,c)=>s+c.max,0); }
+function getTotal(scores){return scores?scores.reduce((a,b)=>a+b,0):0}
+function getPct(scores){return scores?Math.round(getTotal(scores)/totalMax()*100):0}
+function getGrade(pct){if(pct>=80)return"A";if(pct>=70)return"B";if(pct>=60)return"C";return"F"}
+function badge(g){return`<span class="badge badge-${g}">${g}</span>`}
+function initials(name){return name?name.trim()[0]:"?"}
+function displayCls(s){return[s.level,s.room?"/"+s.room:""].join("").trim()}
+
+// PERSIST
+function save(){
+  localStorage.setItem("gf_students",JSON.stringify(students));
+  localStorage.setItem("gf_criteria",JSON.stringify(criteria));
+  localStorage.setItem("gf_settings",JSON.stringify(settings));
+  localStorage.setItem("gf_assignments",JSON.stringify(assignments));
+}
+function load(){
+  try{students=JSON.parse(localStorage.getItem("gf_students")||"{}")}catch(e){}
+  try{const c=JSON.parse(localStorage.getItem("gf_criteria"));if(c&&c.length)criteria=c}catch(e){}
+  try{const s=JSON.parse(localStorage.getItem("gf_settings"));if(s)settings=Object.assign(settings,s)}catch(e){}
+  try{const a=JSON.parse(localStorage.getItem("gf_assignments")||"{}");if(a)assignments=a}catch(e){}
+}
+
+// DEMO
+function seedDemo(){
+  if(Object.keys(students).length>0)return;
+  const demo=[
+    ["67001","นายสมชาย ใจดี","ม.5","1","วิทยาการคำนวณ",[28,22,18,13,10],"1"],
+    ["67002","นางสาวสมหญิง รักเรียน","ม.5","1","วิทยาการคำนวณ",[24,19,17,12,10],"2"],
+    ["67003","นายวิชัย ตั้งใจ","ม.5","2","วิทยาการคำนวณ",[20,15,14,10,8],"3"],
+    ["67004","นางสาวกานดา มีสุข","ม.5","2","คณิตศาสตร์",null,"4"],
+    ["67005","นายประยุทธ์ ขยันดี","ม.6","1","คณิตศาสตร์",null,"5"],
+    ["67006","นางสาวอรพิน ใฝ่รู้","ม.6","1","วิทยาการคำนวณ",[18,12,13,9,7],"6"],
+  ];
+  demo.forEach(([id,name,level,room,subject,scores,no])=>{
+    students[id]={id,no,name,level:level||"",room:room||"",subject:subject||"",scores,graded:!!scores};
+  });
+  save();
+}
+
+// DROPDOWN OPTIONS
+function getUnique(field){
+  return [...new Set(Object.values(students).map(s=>s[field]||"").filter(Boolean))].sort();
+}
+function populateFilters(){
+  const levels=getUnique("level"),rooms=getUnique("room"),subjects=getUnique("subject");
+  const fillSel=(id,vals)=>{
+    const el=document.getElementById(id);if(!el)return;
+    const cur=el.value;
+    el.innerHTML='<option value="">'+el.options[0]?.text+'</option>'+vals.map(v=>`<option${v===cur?' selected':''}>${v}</option>`).join("");
+  };
+  ["flt-level","sum-flt-level","bc-flt-level"].forEach(id=>fillSel(id,levels));
+  ["flt-room","sum-flt-room","bc-flt-room"].forEach(id=>fillSel(id,rooms));
+  ["flt-subject","sum-flt-subject","bc-flt-subject"].forEach(id=>fillSel(id,subjects));
+  // datalist for subject input
+  const dl=document.getElementById("subject-list");
+  if(dl)dl.innerHTML=subjects.map(s=>`<option value="${s}">`).join("");
+}
+
+// STATS
+function updateStats(){
+  const all=Object.values(students),graded=all.filter(s=>s.graded),pend=all.length-graded.length;
+  const avg=graded.length?Math.round(graded.reduce((s,x)=>s+getPct(x.scores),0)/graded.length):0;
+  document.getElementById("st-total").textContent=all.length;
+  document.getElementById("st-done").textContent=graded.length;
+  document.getElementById("st-avg").textContent=graded.length?avg+"%":"—";
+  document.getElementById("st-pend").textContent=pend;
+  document.getElementById("sb-total").textContent=all.length;
+  document.getElementById("sb-done").textContent=graded.length;
+  document.getElementById("sb-pend").textContent=pend;
+}
+
+// NAV
+function goto(page){
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+  document.getElementById("page-"+page).classList.add("active");
+  const map=["scan","students","summary","barcodes","settings"];
+  document.querySelectorAll(".nav-item")[map.indexOf(page)]?.classList.add("active");
+  if(page==="students"){populateFilters();renderTable()}
+  if(page==="summary"){populateFilters();renderSummary()}
+  if(page==="barcodes"){populateFilters();renderBarcodes()}
+  if(page==="settings")renderSettings();
+}
+
+// ASSIGNMENTS
+function populateAssignmentSelect(){
+  const sel=document.getElementById("assignmentSelect");
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— เลือกงาน —</option>';
+  Object.values(assignments).sort((a,b)=>a.name.localeCompare(b.name,"th")).forEach(a=>{
+    sel.innerHTML+=`<option value="${a.id}">${a.name} (${a.maxScore} คะแนน${a.weight?", "+a.weight+"%":""} )</option>`;
+  });
+  if(cur && assignments[cur]) sel.value=cur;
+  renderAssignmentInfo();
+}
+
+function onAssignmentChange(){
+  currentAssignmentId=document.getElementById("assignmentSelect").value||null;
+  document.getElementById("editAssignBtn").style.display=currentAssignmentId?"":"none";
+  document.getElementById("delAssignBtn").style.display=currentAssignmentId?"":"none";
+  renderAssignmentInfo();
+  clearScan();
+}
+
+function renderAssignmentInfo(){
+  const box=document.getElementById("assignmentInfo");
+  if(!currentAssignmentId||!assignments[currentAssignmentId]){box.style.display="none";return}
+  const a=assignments[currentAssignmentId];
+  box.style.display="flex";
+  box.innerHTML=`
+    <span style="font-size:18px">📋</span>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:15px;color:var(--accent)">${a.name}</div>
+      ${a.desc?`<div style="font-size:12px;color:var(--text2);margin-top:2px">${a.desc}</div>`:""}
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap">
+      <div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--accent)">${a.maxScore}</div><div style="font-size:11px;color:var(--text2)">คะแนนเต็ม</div></div>
+      ${a.weight?`<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#7c3aed">${a.weight}%</div><div style="font-size:11px;color:var(--text2)">น้ำหนัก</div></div>`:""}
+      <div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--green)">${a.criteria.length}</div><div style="font-size:11px;color:var(--text2)">เกณฑ์</div></div>
+    </div>`;
+}
+
+function openNewAssignment(){
+  document.getElementById("assignmentModalTitle").textContent="📋 สร้างงานใหม่";
+  document.getElementById("assign-edit-id").value="";
+  document.getElementById("assign-name").value="";
+  document.getElementById("assign-maxscore").value="100";
+  document.getElementById("assign-weight").value="";
+  document.getElementById("assign-desc").value="";
+  assignTempCriteria=[
+    {name:"ความถูกต้องของเนื้อหา",max:30},
+    {name:"ความคิดสร้างสรรค์",max:30},
+    {name:"การนำเสนอ",max:20},
+    {name:"ความสมบูรณ์",max:20}
+  ];
+  renderAssignCriteriaEditor();
+  document.getElementById("assignmentModal").classList.add("open");
+  setTimeout(()=>document.getElementById("assign-name").focus(),100);
+}
+
+function openEditAssignment(){
+  if(!currentAssignmentId||!assignments[currentAssignmentId])return;
+  const a=assignments[currentAssignmentId];
+  document.getElementById("assignmentModalTitle").textContent="✏️ แก้ไขงาน";
+  document.getElementById("assign-edit-id").value=a.id;
+  document.getElementById("assign-name").value=a.name;
+  document.getElementById("assign-maxscore").value=a.maxScore;
+  document.getElementById("assign-weight").value=a.weight||"";
+  document.getElementById("assign-desc").value=a.desc||"";
+  assignTempCriteria=JSON.parse(JSON.stringify(a.criteria));
+  renderAssignCriteriaEditor();
+  document.getElementById("assignmentModal").classList.add("open");
+}
+
+function deleteAssignment(){
+  if(!currentAssignmentId||!assignments[currentAssignmentId])return;
+  if(!confirm("ลบงาน '"+assignments[currentAssignmentId].name+"'?\nคะแนนที่ตรวจในงานนี้จะหายไปด้วย"))return;
+  delete assignments[currentAssignmentId];
+  currentAssignmentId=null;
+  save();populateAssignmentSelect();onAssignmentChange();
+  toast("ลบงานแล้ว");
+}
+
+function addAssignCriterion(){
+  const max=parseInt(document.getElementById("assign-maxscore").value)||100;
+  assignTempCriteria.push({name:"เกณฑ์ใหม่",max:Math.max(1,Math.floor(max/assignTempCriteria.length+1||10))});
+  renderAssignCriteriaEditor();
+}
+
+function removeAssignCriterion(i){
+  if(assignTempCriteria.length<=1){toast("ต้องมีอย่างน้อย 1 เกณฑ์","err");return}
+  assignTempCriteria.splice(i,1);renderAssignCriteriaEditor();
+}
+
+function renderAssignCriteriaEditor(){
+  const max=parseInt(document.getElementById("assign-maxscore").value)||100;
+  const ed=document.getElementById("assignCriteriaEditor");
+  ed.innerHTML=assignTempCriteria.map((c,i)=>`
+    <div class="criteria-edit-row">
+      <input class="criteria-edit-name" id="ac-name-${i}" value="${c.name}" placeholder="ชื่อเกณฑ์">
+      <input class="criteria-edit-max" type="number" id="ac-max-${i}" value="${c.max}" min="0" placeholder="คะแนน" oninput="updateAssignCriteriaSum()">
+      <button class="btn btn-danger" style="padding:5px 10px" onclick="removeAssignCriterion(${i})">✕</button>
+    </div>`).join("");
+  updateAssignCriteriaSum();
+}
+
+function updateAssignCriteriaSum(){
+  const max=parseInt(document.getElementById("assign-maxscore").value)||100;
+  const sum=assignTempCriteria.map((_,i)=>parseInt(document.getElementById("ac-max-"+i)?.value)||0).reduce((a,b)=>a+b,0);
+  const sumEl=document.getElementById("assign-criteria-sum");
+  const maxEl=document.getElementById("assign-criteria-max");
+  if(sumEl)sumEl.textContent=sum;
+  if(maxEl)maxEl.textContent=max;
+  if(sumEl)sumEl.style.color=sum===max?"var(--green)":"var(--red)";
+}
+
+function onAssignMaxChange(){
+  document.getElementById("assign-criteria-max").textContent=document.getElementById("assign-maxscore").value||100;
+  updateAssignCriteriaSum();
+}
+
+function saveAssignment(){
+  const name=document.getElementById("assign-name").value.trim();
+  const maxScore=parseInt(document.getElementById("assign-maxscore").value)||0;
+  const weight=parseInt(document.getElementById("assign-weight").value)||0;
+  const desc=document.getElementById("assign-desc").value.trim();
+  if(!name){toast("กรุณาใส่ชื่องาน","err");return}
+  if(!maxScore){toast("กรุณาระบุคะแนนเต็ม","err");return}
+  // collect criteria
+  const ac=assignTempCriteria.map((_,i)=>({
+    name:document.getElementById("ac-name-"+i)?.value.trim()||"เกณฑ์ "+(i+1),
+    max:parseInt(document.getElementById("ac-max-"+i)?.value)||0
+  }));
+  const sum=ac.reduce((a,b)=>a+b.max,0);
+  if(sum!==maxScore){toast(`รวมเกณฑ์ (${sum}) ≠ คะแนนเต็ม (${maxScore}) — กรุณาแก้ไข`,"err");return}
+  const editId=document.getElementById("assign-edit-id").value;
+  const id=editId||genId();
+  assignments[id]={id,name,maxScore,weight,desc,criteria:ac};
+  save();closeModal("assignmentModal");populateAssignmentSelect();
+  document.getElementById("assignmentSelect").value=id;
+  currentAssignmentId=id;
+  document.getElementById("editAssignBtn").style.display="";
+  document.getElementById("delAssignBtn").style.display="";
+  renderAssignmentInfo();
+  toast("✓ บันทึกงาน '"+name+"' แล้ว");
+}
+
+// SCAN
+const barcodeInput=document.getElementById("barcodeInput");
+const scanZone=document.getElementById("scanZone");
+const studentPanel=document.getElementById("studentPanel");
+barcodeInput.addEventListener("focus",()=>scanZone.classList.add("focused"));
+barcodeInput.addEventListener("blur",()=>scanZone.classList.remove("focused"));
+barcodeInput.addEventListener("keydown",e=>{if(e.key==="Enter"){const id=barcodeInput.value.trim();if(id)lookup(id)}});
+
+function lookup(id){
+  if(!currentAssignmentId){toast("กรุณาเลือกงานก่อนสแกน","err");playBeep("err");barcodeInput.select();return}
+  const s=students[id];
+  if(!s){toast("ไม่พบรหัส "+id+" ในระบบ","err");barcodeInput.select();playBeep("err");return}
+  currentId=id;
+  document.getElementById("panelAvatar").textContent=initials(s.name);
+  document.getElementById("panelName").textContent=s.name;
+  const dateEl=document.getElementById("scanDate");
+  const dateVal=dateEl?dateEl.value:"";
+  const dateStr=dateVal?new Date(dateVal).toLocaleDateString("th-TH",{year:"numeric",month:"short",day:"numeric"}):"";
+  const asgn=assignments[currentAssignmentId];
+  const chips=document.getElementById("panelChips");
+  chips.innerHTML=[
+    s.level?`<span class="chip">🎓 ${s.level}</span>`:"",
+    s.room?`<span class="chip">🚪 ห้อง ${s.room}</span>`:"",
+    s.subject?`<span class="chip">📚 ${s.subject}</span>`:"",
+    `<span class="chip mono">${s.id}</span>`,
+    asgn?`<span class="chip" style="color:#7c3aed;background:#ede9fe;border-color:#c4b5fd">📋 ${asgn.name}</span>`:"",
+    dateStr?`<span class="chip" style="color:#0369a1;background:#e0f2fe;border-color:#7dd3fc">📅 ${dateStr}</span>`:""
+  ].join("");
+  // load existing score for this assignment
+  const existingScores=(s.assignmentScores||{})[currentAssignmentId]?.scores||null;
+  const isGraded=!!(s.assignmentScores||{})[currentAssignmentId];
+  document.getElementById("panelStatus").innerHTML=isGraded?badge(getGrade(Math.round(getTotal(existingScores)/totalMax()*100))):"<span class='badge badge-pending'>รอตรวจ</span>";
+  document.getElementById("totalMax").textContent="/ "+totalMax();
+  buildCriteriaForm({scores:existingScores,graded:isGraded});
+  studentPanel.classList.add("show");
+  updateTotal();
+  playBeep("ok");
+}
+
+// SOUND ENGINE
+const AudioCtx=window.AudioContext||window.webkitAudioContext;
+let audioCtx=null;
+function getAudioCtx(){if(!audioCtx)audioCtx=new AudioCtx();if(audioCtx.state==="suspended")audioCtx.resume();return audioCtx}
+function playBeep(type){
+  if(!document.getElementById("soundToggle")?.checked)return;
+  try{
+    const ctx=getAudioCtx();
+    if(type==="ok"){
+      [[880,0,0.12],[1100,0.13,0.12]].forEach(([freq,when,dur])=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);o.type="sine";o.frequency.value=freq;
+        g.gain.setValueAtTime(0,ctx.currentTime+when);
+        g.gain.linearRampToValueAtTime(0.25,ctx.currentTime+when+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+when+dur);
+        o.start(ctx.currentTime+when);o.stop(ctx.currentTime+when+dur+0.01);
+      });
+    } else {
+      [[220,0,0.08],[180,0.09,0.15]].forEach(([freq,when,dur])=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);o.type="sawtooth";o.frequency.value=freq;
+        g.gain.setValueAtTime(0,ctx.currentTime+when);
+        g.gain.linearRampToValueAtTime(0.18,ctx.currentTime+when+0.01);
+        g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+when+dur);
+        o.start(ctx.currentTime+when);o.stop(ctx.currentTime+when+dur+0.01);
+      });
+    }
+  }catch(e){}
+}
+function playBeepSave(){
+  if(!document.getElementById("soundToggle")?.checked)return;
+  try{
+    const ctx=getAudioCtx();
+    [[523,0,0.1],[659,0.12,0.1],[784,0.24,0.18]].forEach(([freq,when,dur])=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);o.type="sine";o.frequency.value=freq;
+      g.gain.setValueAtTime(0,ctx.currentTime+when);
+      g.gain.linearRampToValueAtTime(0.22,ctx.currentTime+when+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+when+dur);
+      o.start(ctx.currentTime+when);o.stop(ctx.currentTime+when+dur+0.01);
+    });
+  }catch(e){}
+}
+
+// CLOCK
+function tickClock(){
+  const el=document.getElementById("scanTimeDisplay");
+  if(el)el.textContent="🕐 "+new Date().toLocaleTimeString("th-TH",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+setInterval(tickClock,1000);tickClock();
+
+function buildCriteriaForm(s){
+  const list=document.getElementById("criteriaList");
+  const ac=activeCriteria();
+  list.innerHTML="";
+  ac.forEach((c,i)=>{
+    const val=s.graded&&s.scores?s.scores[i]:0;
+    const pct=Math.round(val/c.max*100);
+    list.innerHTML+=`<div class="criteria-row">
+      <div class="criteria-name">${c.name}</div>
+      <div class="score-bar"><div class="score-bar-fill" id="bar-${i}" style="width:${pct}%"></div></div>
+      <div class="criteria-max">/ ${c.max}</div>
+      <input class="score-inp" type="number" min="0" max="${c.max}" value="${val}" id="sc-${i}" oninput="onScoreChange(${i},${c.max})">
+    </div>`;
+  });
+}
+
+function onScoreChange(i,max){
+  const inp=document.getElementById("sc-"+i);
+  let v=parseInt(inp.value)||0;
+  if(v<0){v=0;inp.value=0}if(v>max){v=max;inp.value=max}
+  document.getElementById("bar-"+i).style.width=Math.round(v/max*100)+"%";
+  updateTotal();
+}
+
+function updateTotal(){
+  let total=0;
+  criteria.forEach((_,i)=>{const el=document.getElementById("sc-"+i);if(el)total+=Math.min(parseInt(el.value)||0,criteria[i].max)});
+  const pct=Math.round(total/totalMax()*100);
+  document.getElementById("totalVal").textContent=total;
+  document.getElementById("totalPct").textContent=pct+"%";
+  document.getElementById("fullProgress").style.width=pct+"%";
+}
+
+function saveGrade(){
+  if(!currentId)return;
+  if(!currentAssignmentId){toast("กรุณาเลือกงานก่อนบันทึก","err");return}
+  const ac=activeCriteria();
+  const scores=ac.map((_,i)=>Math.min(parseInt(document.getElementById("sc-"+i)?.value)||0,ac[i].max));
+  if(!students[currentId].assignmentScores) students[currentId].assignmentScores={};
+  students[currentId].assignmentScores[currentAssignmentId]={
+    scores,
+    gradedDate:document.getElementById("scanDate")?.value||"",
+    assignmentName:assignments[currentAssignmentId]?.name||""
+  };
+  // also update legacy graded flag for summary/table compat
+  students[currentId].graded=true;
+  students[currentId].scores=scores;
+  students[currentId].gradedDate=document.getElementById("scanDate")?.value||"";
+  save();updateStats();populateFilters();
+  playBeepSave();
+  toast("✓ บันทึกคะแนน "+students[currentId].name+" ("+assignments[currentAssignmentId]?.name+") แล้ว");
+  clearScan();
+  if(settings.autoSync&&settings.gasUrl) syncToCloud();
+}
+
+function clearScan(){currentId=null;barcodeInput.value="";studentPanel.classList.remove("show");barcodeInput.focus()}
+
+// TABLE
+function getFilteredStudents(levelId,roomId,subjectId,searchId){
+  const lv=(document.getElementById(levelId)?.value||"").toLowerCase();
+  const rm=(document.getElementById(roomId)?.value||"").toLowerCase();
+  const su=(document.getElementById(subjectId)?.value||"").toLowerCase();
+  const q=(document.getElementById(searchId)?.value||"").toLowerCase();
+  return Object.values(students).filter(s=>
+    (!lv||((s.level||"").trim().toLowerCase()===lv))&&
+    (!rm||((s.room||"").trim().toLowerCase()===rm))&&
+    (!su||((s.subject||"").trim().toLowerCase()===su))&&
+    (!q||(s.name||"").toLowerCase().includes(q)||(s.id||"").toLowerCase().includes(q))
+  );
+}
+
+function resetFilters(){
+  ["flt-level","flt-room","flt-subject","flt-search"].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value="";
+  });
+  renderTable();
+}
+
+function renderTable(){
+  const all=getFilteredStudents("flt-level","flt-room","flt-subject","flt-search");
+  const tbody=document.getElementById("studentTable"),empty=document.getElementById("emptyStudents");
+  if(!Object.keys(students).length){tbody.innerHTML="";empty.style.display="block";return}
+  empty.style.display="none";
+  if(!all.length){tbody.innerHTML=`<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text2)">ไม่พบนักเรียนที่ตรงกับเงื่อนไข</td></tr>`;return}
+  tbody.innerHTML=all.map((s,idx)=>{
+    const total=getTotal(s.scores),pct=getPct(s.scores),g=getGrade(pct);
+    return`<tr>
+      <td style="color:var(--text2);font-size:13px;text-align:center">${s.no||idx+1}</td>
+      <td class="mono">${s.id}</td>
+      <td><strong>${s.name}</strong></td>
+      <td>${s.level||"—"}</td>
+      <td>${s.room?"ห้อง "+s.room:"—"}</td>
+      <td style="color:var(--text2)">${s.subject||"—"}</td>
+      <td class="mono">${s.graded?total+" / "+totalMax():"—"}</td>
+      <td class="mono">${s.graded?pct+"%":"—"}</td>
+      <td>${s.graded?badge(g):"<span class='badge badge-pending'>รอ</span>"}</td>
+      <td>${s.graded?"<span style='color:var(--green);font-size:13px'>✓ แล้ว</span>":"<span style='color:var(--amber);font-size:13px'>○ รอ</span>"}</td>
+      <td style="display:flex;gap:6px">
+        <button class="btn" style="padding:5px 10px;font-size:13px" onclick="quickGrade('${s.id}')">✏️</button>
+        <button class="btn" style="padding:5px 10px;font-size:13px" title="พิมพ์บาร์โค้ด" onclick="showQuickBarcode('${s.id}')">🏷️</button>
+        <button class="btn" style="padding:5px 10px;font-size:13px" onclick="openEdit('${s.id}')">🔧</button>
+        <button class="btn btn-danger" style="padding:5px 10px;font-size:13px" onclick="deleteStudent('${s.id}')">🗑️</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function quickGrade(id){goto("scan");barcodeInput.value=id;lookup(id)}
+
+function openEdit(id){
+  const s=students[id];if(!s)return;
+  document.getElementById("edit-id").value=id;
+  document.getElementById("edit-id-show").value=id;
+  document.getElementById("edit-no").value=s.no||"";
+  document.getElementById("edit-name").value=s.name;
+  document.getElementById("edit-level").value=s.level||"";
+  document.getElementById("edit-room").value=s.room||"";
+  document.getElementById("edit-subject").value=s.subject||"";
+  document.getElementById("editModal").classList.add("open");
+}
+
+function saveEdit(){
+  const id=document.getElementById("edit-id").value;
+  if(!students[id])return;
+  students[id].no=document.getElementById("edit-no").value.trim();
+  students[id].name=document.getElementById("edit-name").value.trim()||students[id].name;
+  students[id].level=document.getElementById("edit-level").value;
+  students[id].room=document.getElementById("edit-room").value.trim();
+  students[id].subject=document.getElementById("edit-subject").value.trim();
+  save();populateFilters();renderTable();closeModal("editModal");toast("✓ แก้ไขแล้ว");
+}
+
+function deleteStudent(id){
+  if(!confirm("ลบนักเรียน "+students[id]?.name+" ?"))return;
+  delete students[id];save();updateStats();populateFilters();renderTable();toast("ลบแล้ว");
+}
+
+// SUMMARY
+function renderSummary(){
+  const all=getFilteredStudents("sum-flt-level","sum-flt-room","sum-flt-subject",null);
+  const graded=all.filter(s=>s.graded);
+  const counts={A:0,B:0,C:0,F:0};
+  graded.forEach(s=>counts[getGrade(getPct(s.scores))]++);
+  document.getElementById("sum-a").textContent=counts.A;
+  document.getElementById("sum-b").textContent=counts.B;
+  document.getElementById("sum-c").textContent=counts.C;
+  document.getElementById("sum-f").textContent=counts.F;
+  const ranges=[
+    {l:"90–100%",min:90,max:101,color:"#22c55e"},{l:"80–89%",min:80,max:90,color:"#4f8ef7"},
+    {l:"70–79%",min:70,max:80,color:"#6366f1"},{l:"60–69%",min:60,max:70,color:"#f59e0b"},
+    {l:"ต่ำกว่า 60%",min:0,max:60,color:"#ef4444"}
+  ];
+  const total=graded.length||1;
+  document.getElementById("distChart").innerHTML=ranges.map(r=>{
+    const cnt=graded.filter(s=>{const p=getPct(s.scores);return p>=r.min&&p<r.max}).length;
+    return`<div class="dist-row"><div class="dist-label">${r.l}</div><div class="dist-bar"><div class="dist-fill" style="width:${Math.round(cnt/total*100)}%;background:${r.color}"></div></div><div class="dist-count" style="color:${r.color}">${cnt}</div></div>`;
+  }).join("");
+  const top=[...graded].sort((a,b)=>getTotal(b.scores)-getTotal(a.scores)).slice(0,10);
+  const topTbl=document.getElementById("topTable"),emptyTop=document.getElementById("emptyTop");
+  if(!top.length){topTbl.innerHTML="";emptyTop.style.display="block"}
+  else{
+    emptyTop.style.display="none";
+    topTbl.innerHTML=top.map((s,i)=>`<tr>
+      <td style="color:var(--text2);font-size:12px">${i===0?"🥇":i===1?"🥈":i===2?"🥉":i+1}</td>
+      <td>${s.name}</td><td style="color:var(--text2);font-size:12px">${s.level||""}${s.room?"/"+s.room:""}</td>
+      <td class="mono">${getTotal(s.scores)} (${getPct(s.scores)}%)</td><td>${badge(getGrade(getPct(s.scores)))}</td>
+    </tr>`).join("");
+  }
+  const cAvg=document.getElementById("criteriaAvgChart");
+  if(!graded.length){cAvg.innerHTML="<div style='color:var(--text2);font-size:13px'>ยังไม่มีข้อมูล</div>";return}
+  cAvg.innerHTML=criteria.map((c,i)=>{
+    const avg=Math.round(graded.reduce((s,x)=>s+(x.scores&&x.scores[i]||0),0)/graded.length*10)/10;
+    return`<div class="dist-row"><div class="dist-label" style="min-width:200px;font-size:13px">${c.name}</div><div class="dist-bar"><div class="dist-fill" style="width:${Math.round(avg/c.max*100)}%;background:var(--accent)"></div></div><div class="dist-count">${avg}/${c.max}</div></div>`;
+  }).join("");
+}
+
+// ===== CLOUD SYNC (Google Apps Script) =====
+const GAS_CODE = `const SHEET_NAME = "GradeFlowData";
+
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+    sheet.clearContents();
+    sheet.getRange(1,1).setValue(JSON.stringify(data));
+    sheet.getRange(1,2).setValue(new Date().toISOString());
+    return ok({saved: true, time: new Date().toISOString()});
+  } catch(err) {
+    return ok({error: err.message});
+  }
+}
+
+function doGet(e) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAME);
+    if (!sheet) return ok({data: null});
+    const val = sheet.getRange(1,1).getValue();
+    const time = sheet.getRange(1,2).getValue();
+    return ok({data: val ? JSON.parse(val) : null, time: time});
+  } catch(err) {
+    return ok({error: err.message});
+  }
+}
+
+function ok(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
+
+function setSyncStatus(state, msg){
+  const dot=document.getElementById("syncStatusDot");
+  const txt=document.getElementById("syncStatusText");
+  const log=document.getElementById("syncLog");
+  const colors={ok:"#22c55e",err:"#ef4444",loading:"#f59e0b",off:"#d1d5db"};
+  if(dot) dot.style.background=colors[state]||colors.off;
+  if(txt) txt.textContent=msg;
+  if(log){
+    log.style.display="block";
+    log.textContent="["+new Date().toLocaleTimeString("th-TH")+"] "+msg;
+  }
+}
+
+function showSyncButtons(show){
+  ["btn-push","btn-pull"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.style.display=show?"":"none";
+  });
+  const lbl=document.getElementById("lbl-autosync");
+  if(lbl) lbl.style.display=show?"":"none";
+}
+
+async function testAndSaveGASUrl(){
+  const url=document.getElementById("set-gas-url").value.trim();
+  if(!url){toast("กรุณาวาง URL ก่อน","err");return}
+  setSyncStatus("loading","กำลังทดสอบการเชื่อมต่อ...");
+  try{
+    const res=await fetch(url,{method:"GET",redirect:"follow"});
+    const json=await res.json();
+    if(json.error) throw new Error(json.error);
+    settings.gasUrl=url;
+    save();
+    setSyncStatus("ok","✓ เชื่อมต่อสำเร็จ"+(json.time?" · ข้อมูลล่าสุด: "+new Date(json.time).toLocaleString("th-TH"):""));
+    showSyncButtons(true);
+    toast("✓ เชื่อมต่อ Cloud สำเร็จ");
+  }catch(err){
+    setSyncStatus("err","✗ เชื่อมต่อไม่ได้: "+err.message);
+    toast("เชื่อมต่อไม่ได้ — ตรวจสอบ URL และสิทธิ์ Access","err");
+  }
+}
+
+async function syncToCloud(){
+  const url=settings.gasUrl;
+  if(!url){toast("ยังไม่ได้เชื่อมต่อ Cloud","err");return}
+  const btn=document.getElementById("btn-push");
+  if(btn){btn.disabled=true;document.getElementById("pushIcon").textContent="⏳"}
+  setSyncStatus("loading","กำลังอัปโหลดข้อมูล...");
+  try{
+    const payload={students,criteria,settings,assignments,syncedAt:new Date().toISOString()};
+    const res=await fetch(url,{method:"POST",body:JSON.stringify(payload),redirect:"follow"});
+    const json=await res.json();
+    if(json.error) throw new Error(json.error);
+    setSyncStatus("ok","✓ อัปโหลดสำเร็จ · "+new Date().toLocaleString("th-TH"));
+    toast("✓ Sync ขึ้น Cloud แล้ว");
+  }catch(err){
+    setSyncStatus("err","✗ อัปโหลดล้มเหลว: "+err.message);
+    toast("Sync ล้มเหลว: "+err.message,"err");
+  }finally{
+    if(btn){btn.disabled=false;document.getElementById("pushIcon").textContent="⬆️"}
+  }
+}
+
+async function syncFromCloud(){
+  const url=settings.gasUrl;
+  if(!url){toast("ยังไม่ได้เชื่อมต่อ Cloud","err");return}
+  if(!confirm("โหลดข้อมูลจาก Cloud จะ**แทนที่**ข้อมูลในเครื่องนี้ทั้งหมด ดำเนินการต่อ?"))return;
+  const btn=document.getElementById("btn-pull");
+  if(btn){btn.disabled=true;document.getElementById("pullIcon").textContent="⏳"}
+  setSyncStatus("loading","กำลังโหลดข้อมูลจาก Cloud...");
+  try{
+    const res=await fetch(url,{method:"GET",redirect:"follow"});
+    const json=await res.json();
+    if(json.error) throw new Error(json.error);
+    if(!json.data){setSyncStatus("ok","Cloud ว่างอยู่ ยังไม่มีข้อมูล");toast("Cloud ว่างอยู่ ยังไม่มีข้อมูล","err");return}
+    const d=json.data;
+    if(d.students) students=d.students;
+    if(d.criteria&&d.criteria.length) criteria=d.criteria;
+    if(d.assignments) assignments=d.assignments;
+    if(d.settings){const gs=d.settings;settings=Object.assign(settings,gs);}
+    save();updateStats();populateFilters();renderTable();populateAssignmentSelect();updateSidebarProfile();renderSettings();
+    setSyncStatus("ok","✓ โหลดสำเร็จ · "+new Date(json.time||Date.now()).toLocaleString("th-TH"));
+    toast("✓ โหลดข้อมูลจาก Cloud แล้ว");
+  }catch(err){
+    setSyncStatus("err","✗ โหลดล้มเหลว: "+err.message);
+    toast("โหลดล้มเหลว: "+err.message,"err");
+  }finally{
+    if(btn){btn.disabled=false;document.getElementById("pullIcon").textContent="⬇️"}
+  }
+}
+
+function copyGASCode(){
+  navigator.clipboard.writeText(GAS_CODE).then(()=>toast("✓ คัดลอกโค้ดแล้ว")).catch(()=>toast("คัดลอกไม่ได้ — กรุณาเลือกและคัดลอกเอง","err"));
+}
+
+function initCloudUI(){
+  // populate code block
+  const cb=document.getElementById("gasCodeBlock");
+  if(cb) cb.textContent=GAS_CODE;
+  // restore URL
+  const urlEl=document.getElementById("set-gas-url");
+  if(urlEl&&settings.gasUrl) urlEl.value=settings.gasUrl;
+  const autoEl=document.getElementById("set-autosync");
+  if(autoEl) autoEl.checked=!!settings.autoSync;
+  if(settings.gasUrl){
+    setSyncStatus("ok","เชื่อมต่ออยู่ · กด 'อัปโหลด/โหลด' เพื่อ Sync");
+    showSyncButtons(true);
+  }
+}
+
+// SETTINGS
+function renderSettings(){
+  document.getElementById("set-teacher").value=settings.teacher||"";
+  document.getElementById("set-school").value=settings.school||"";
+  document.getElementById("set-dept").value=settings.dept||"";
+  document.getElementById("set-term").value=settings.term||"";
+  document.getElementById("criteriaEditor").innerHTML=criteria.map((c,i)=>`<div class="criteria-edit-row">
+    <input class="criteria-edit-name" value="${c.name}" id="ce-name-${i}" placeholder="ชื่อเกณฑ์">
+    <input class="criteria-edit-max" type="number" value="${c.max}" id="ce-max-${i}" placeholder="คะแนน" oninput="updateCriteriaTotal()">
+    <button class="btn btn-danger" style="padding:5px 10px" onclick="removeCriterion(${i})">✕</button>
+  </div>`).join("");
+  updateCriteriaTotal();
+  updateExcelPreview();
+  initCloudUI();
+}
+function updateExcelPreview(){
+  const t=document.getElementById("set-teacher")?.value||"";
+  const s=document.getElementById("set-school")?.value||"";
+  const d=document.getElementById("set-dept")?.value||"";
+  const term=document.getElementById("set-term")?.value||"";
+  const el=document.getElementById("excelPreview");
+  if(el) el.innerHTML=[
+    s?`🏫 ${s}`:"🏫 (ยังไม่ได้ใส่ชื่อโรงเรียน)",
+    t?`👤 ${t}`:"",d?`📂 ${d}`:"",term?`📅 ภาคเรียน ${term}`:""
+  ].filter(Boolean).join(" · ");
+}
+function updateCriteriaTotal(){
+  document.getElementById("criteriaTotal").textContent=criteria.map((_,i)=>parseInt(document.getElementById("ce-max-"+i)?.value)||0).reduce((a,b)=>a+b,0);
+}
+function addCriterion(){criteria.push({name:"เกณฑ์ใหม่",max:10});renderSettings()}
+function removeCriterion(i){if(criteria.length<=1){toast("ต้องมีอย่างน้อย 1 เกณฑ์","err");return}criteria.splice(i,1);renderSettings()}
+function saveSettings(){
+  settings.teacher=document.getElementById("set-teacher").value.trim();
+  settings.school=document.getElementById("set-school").value.trim();
+  settings.dept=document.getElementById("set-dept").value.trim();
+  settings.term=document.getElementById("set-term").value.trim();
+  settings.autoSync=document.getElementById("set-autosync")?.checked||false;
+  criteria=criteria.map((_,i)=>({name:document.getElementById("ce-name-"+i)?.value||criteria[i].name,max:parseInt(document.getElementById("ce-max-"+i)?.value)||criteria[i].max}));
+  save();updateExcelPreview();
+  updateSidebarProfile();
+  toast("✓ บันทึกการตั้งค่าแล้ว");
+  if(settings.autoSync&&settings.gasUrl) syncToCloud();
+}
+function updateSidebarProfile(){
+  const nameEl=document.getElementById("sidebar-teacher-name");
+  const schoolEl=document.getElementById("sidebar-school-name");
+  if(nameEl) nameEl.textContent=settings.teacher||"ยังไม่ได้ตั้งค่า";
+  if(schoolEl) schoolEl.textContent=settings.school||"";
+}
+
+// ADD / EDIT
+function openAdd(){document.getElementById("addModal").classList.add("open");document.getElementById("add-id").focus()}
+function openImport(){
+  document.getElementById("importPreview").style.display="none";
+  document.getElementById("importCancel").style.display="flex";
+  document.getElementById("importModal").classList.add("open");
+}
+function closeModal(id){document.getElementById(id).classList.remove("open")}
+
+function addStudent(printBarcode=false){
+  const no=document.getElementById("add-no").value.trim();
+  const id=document.getElementById("add-id").value.trim();
+  const name=document.getElementById("add-name").value.trim();
+  const level=document.getElementById("add-level").value;
+  const room=document.getElementById("add-room").value.trim();
+  const subject=document.getElementById("add-subject").value.trim();
+  if(!id||!name){toast("กรุณากรอกรหัสและชื่อ","err");return}
+  if(students[id]){toast("รหัส "+id+" มีอยู่แล้ว","err");return}
+  if(!subject){toast("กรุณาระบุวิชา","err");return}
+  students[id]={id,no:no||"",name,level,room,subject,scores:null,graded:false};
+  save();updateStats();populateFilters();renderTable();
+  closeModal("addModal");
+  ["add-no","add-id","add-name","add-room","add-subject"].forEach(x=>document.getElementById(x).value="");
+  document.getElementById("add-level").value="";
+  toast("✓ เพิ่ม "+name+" แล้ว");
+  if(printBarcode) showQuickBarcode(id);
+}
+
+function showQuickBarcode(id){
+  const s=students[id];
+  if(!s||!window.JsBarcode){toast("ไม่พบข้อมูล","err");return}
+  document.getElementById("qbcName").textContent=s.name;
+  document.getElementById("qbcId").textContent=s.id;
+  document.getElementById("qbcMeta").textContent=[s.level,s.room?"ห้อง "+s.room:"",s.subject].filter(Boolean).join(" · ");
+  document.getElementById("qbcInfo").innerHTML=`<strong>${s.name}</strong> · รหัส <span style="font-family:monospace;color:var(--accent)">${s.id}</span>`;
+  document.getElementById("quickBarcodeModal").classList.add("open");
+  setTimeout(()=>{
+    try{
+      JsBarcode("#qbcSvg",s.id,{format:"CODE128",width:2.2,height:60,displayValue:true,fontSize:13,margin:6,background:"#ffffff",lineColor:"#000000"});
+    }catch(e){toast("ไม่สามารถสร้างบาร์โค้ดได้: "+s.id,"err")}
+  },80);
+}
+
+function printQuickBarcode(){
+  window.print();
+}
+
+// CSV
+function handleCSV(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const lines=e.target.result.split("\n").map(l=>l.trim()).filter(Boolean);
+    importBuffer=[];
+    lines.forEach(line=>{
+      const p=line.split(",").map(x=>x.trim().replace(/^"|"$/g,""));
+      // support both 5-col (no เลขที่) and 6-col (with เลขที่)
+      if(p.length>=6){
+        importBuffer.push({no:p[0],id:p[1],name:p[2],level:p[3],room:p[4],subject:p[5]});
+      } else if(p.length>=2){
+        importBuffer.push({no:"",id:p[0],name:p[1],level:p[2]||"",room:p[3]||"",subject:p[4]||""});
+      }
+    });
+    const skip=importBuffer.filter(r=>students[r.id]).length,add=importBuffer.length-skip;
+    document.getElementById("importMsg").innerHTML=`พบ <strong>${importBuffer.length}</strong> แถว · เพิ่มใหม่ <strong>${add}</strong> · ข้าม <strong>${skip}</strong>`;
+    document.getElementById("importPreview").style.display="block";
+    document.getElementById("importCancel").style.display="none";
+  };
+  reader.readAsText(file,"UTF-8");
+}
+function doImport(){
+  let added=0;
+  importBuffer.forEach(r=>{if(!students[r.id]){students[r.id]={...r,scores:null,graded:false};added++}});
+  save();updateStats();populateFilters();renderTable();
+  closeModal("importModal");importBuffer=[];
+  toast("✓ นำเข้า "+added+" คนแล้ว");
+}
+document.getElementById("importZone").addEventListener("dragover",e=>e.preventDefault());
+document.getElementById("importZone").addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleCSV({files:[f]})});
+
+// EXPORT
+function exportExcel(){
+  if(!window.XLSX){toast("ไม่พบ XLSX library","err");return}
+  const wb=XLSX.utils.book_new();
+  const ac=activeCriteria();
+
+  // ---- Sheet 1: คะแนนนักเรียน ----
+  // info rows at top
+  const infoRows=[
+    ["โรงเรียน",settings.school||"—","","ครูผู้สอน",settings.teacher||"—"],
+    ["กลุ่มสาระ",settings.dept||"—","","ภาคเรียน",settings.term||"—"],
+    ["วันที่ Export",new Date().toLocaleDateString("th-TH"),"","",""],
+    [] // blank row
+  ];
+  const header=["เลขที่","รหัสนักเรียน","ชื่อ-สกุล","ชั้นเรียน","ห้อง","วิชา",
+    ...ac.map(c=>c.name+" ("+c.max+")"),
+    "คะแนนรวม","เปอร์เซ็นต์","เกรด","สถานะ","วันที่ตรวจ"];
+  const rows=Object.values(students)
+    .sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999))
+    .map((s,idx)=>{
+    const total=getTotal(s.scores),pct=getPct(s.scores);
+    return[s.no||idx+1,s.id,s.name,s.level||"",s.room||"",s.subject||"",
+      ...(s.graded&&s.scores?s.scores:ac.map(()=>"")),
+      s.graded?total:"",s.graded?pct+"%":"",s.graded?getGrade(pct):"",
+      s.graded?"ตรวจแล้ว":"รอตรวจ",s.gradedDate||""];
+  });
+  const ws=XLSX.utils.aoa_to_sheet([...infoRows,header,...rows]);
+  ws["!cols"]=[{wch:6},{wch:14},{wch:22},{wch:8},{wch:6},{wch:16},...ac.map(()=>({wch:20})),{wch:10},{wch:10},{wch:6},{wch:10},{wch:12}];
+  // merge info cells for labels
+  ws["!merges"]=[
+    {s:{r:0,c:1},e:{r:0,c:3}},{s:{r:1,c:1},e:{r:1,c:3}},
+  ];
+  XLSX.utils.book_append_sheet(wb,ws,"คะแนนนักเรียน");
+
+  // ---- Sheet 2: สรุปผล ----
+  const graded=Object.values(students).filter(s=>s.graded);
+  const avg=graded.length?Math.round(graded.reduce((s,x)=>s+getPct(x.scores),0)/graded.length):0;
+  const cnt={A:0,B:0,C:0,F:0};graded.forEach(s=>cnt[getGrade(getPct(s.scores))]++);
+  const ws2=XLSX.utils.aoa_to_sheet([
+    ["สรุปผลการตรวจงาน"],
+    [""],
+    ["โรงเรียน",settings.school||"—"],
+    ["ครูผู้สอน",settings.teacher||"—"],
+    ["กลุ่มสาระ / แผนก",settings.dept||"—"],
+    ["ภาคเรียน / ปีการศึกษา",settings.term||"—"],
+    ["วันที่ Export",new Date().toLocaleDateString("th-TH")],
+    [""],
+    ["จำนวนนักเรียนทั้งหมด",Object.keys(students).length],
+    ["ตรวจแล้ว",graded.length],
+    ["รอตรวจ",Object.keys(students).length-graded.length],
+    ["คะแนนเฉลี่ย",avg+"%"],
+    [""],
+    ["เกรด A (≥80%)",cnt.A],
+    ["เกรด B (70-79%)",cnt.B],
+    ["เกรด C (60-69%)",cnt.C],
+    ["ต่ำกว่า 60%",cnt.F],
+  ]);
+  ws2["!cols"]=[{wch:28},{wch:24}];
+  XLSX.utils.book_append_sheet(wb,ws2,"สรุปผล");
+
+  const fname=`คะแนน_${settings.school||"โรงเรียน"}_${settings.teacher||"ครู"}_${settings.term||""}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb,fname);
+  toast("✓ Export Excel สำเร็จ!");
+}
+
+// CLEAR
+function clearAllGrades(){if(!confirm("ล้างคะแนนทั้งหมด?"))return;Object.values(students).forEach(s=>{s.scores=null;s.graded=false});save();updateStats();toast("ล้างคะแนนแล้ว")}
+function clearAllStudents(){if(!confirm("ลบนักเรียนทั้งหมด?"))return;students={};save();updateStats();populateFilters();renderTable();toast("ลบทั้งหมดแล้ว")}
+
+// BARCODES
+let bcSelected=new Set();
+
+function renderBarcodes(){
+  const lv=(document.getElementById("bc-flt-level")?.value||"").trim().toLowerCase();
+  const rm=(document.getElementById("bc-flt-room")?.value||"").trim().toLowerCase();
+  const su=(document.getElementById("bc-flt-subject")?.value||"").trim().toLowerCase();
+  const grouped=document.getElementById("bcGroupBy")?.checked;
+  const size=parseFloat(document.getElementById("bcSize")?.value||2);
+  const grid=document.getElementById("bcGrid"),empty=document.getElementById("bcEmpty");
+
+  let all=Object.values(students).filter(s=>
+    (!lv||((s.level||"").trim().toLowerCase()===lv))&&
+    (!rm||((s.room||"").trim().toLowerCase()===rm))&&
+    (!su||((s.subject||"").trim().toLowerCase()===su))
+  );
+
+  if(!all.length){grid.innerHTML="";empty.style.display="block";return}
+  empty.style.display="none";
+
+  const cardHTML=s=>`
+    <div class="bc-card ${bcSelected.has(s.id)?"selected":""}" id="bccard-${s.id}" onclick="bcToggle('${s.id}')">
+      <div style="display:flex;align-items:center;gap:6px;width:100%;justify-content:space-between">
+        <input type="checkbox" class="bc-checkbox" id="bcchk-${s.id}" ${bcSelected.has(s.id)?"checked":""}
+          onclick="event.stopPropagation();bcToggle('${s.id}')">
+        <span class="bc-meta">${s.subject||""}</span>
+      </div>
+      <div class="bc-svg"><svg id="bcsvg-${s.id}"></svg></div>
+      <div class="bc-name">${s.name}</div>
+      <div class="bc-id">${s.id}</div>
+      <div class="bc-meta">${s.level||""}${s.room?" ห้อง "+s.room:""}</div>
+    </div>`;
+
+  if(grouped){
+    // group by level+room+subject
+    const groups={};
+    all.forEach(s=>{
+      const key=`${s.level||"ไม่ระบุชั้น"}|${s.room?"ห้อง "+s.room:""}|${s.subject||"ไม่ระบุวิชา"}`;
+      if(!groups[key])groups[key]=[];
+      groups[key].push(s);
+    });
+    grid.innerHTML=Object.entries(groups).map(([key,members])=>{
+      const [level,room,subject]=key.split("|");
+      return`<div class="bc-group-header">
+        <span class="bc-group-title">${level} ${room} — ${subject}</span>
+        <span class="bc-group-count">${members.length} คน</span>
+        <button class="btn" style="padding:3px 10px;font-size:12px;margin-left:auto" onclick="bcSelectGroup(${JSON.stringify(members.map(s=>s.id))},event)">เลือกกลุ่มนี้</button>
+      </div>${members.map(cardHTML).join("")}`;
+    }).join("");
+  } else {
+    grid.innerHTML=all.map(cardHTML).join("");
+  }
+
+  // Draw after DOM paint — setTimeout for Safari compatibility
+  setTimeout(()=>{
+    all.forEach(s=>{
+      try{JsBarcode("#bcsvg-"+s.id,s.id,{format:"CODE128",width:size,height:48,displayValue:false,margin:4,background:"#ffffff",lineColor:"#000000"})}catch(e){}
+    });
+  },50);
+  updateBcCount();
+}
+
+function bcToggle(id){
+  bcSelected.has(id)?bcSelected.delete(id):bcSelected.add(id);
+  const card=document.getElementById("bccard-"+id),chk=document.getElementById("bcchk-"+id);
+  if(card)card.classList.toggle("selected",bcSelected.has(id));
+  if(chk)chk.checked=bcSelected.has(id);
+  updateBcCount();
+  const total=Object.values(students).length;
+  const cb=document.getElementById("selectAllCb");
+  if(cb){cb.checked=bcSelected.size===total&&total>0;cb.indeterminate=bcSelected.size>0&&bcSelected.size<total}
+}
+
+function bcSelectGroup(ids,e){
+  e.stopPropagation();
+  const allSel=ids.every(id=>bcSelected.has(id));
+  ids.forEach(id=>allSel?bcSelected.delete(id):bcSelected.add(id));
+  renderBarcodes();
+}
+
+function bcSelectAll(){
+  const vis=document.querySelectorAll(".bc-card");
+  const allSel=[...vis].every(el=>el.classList.contains("selected"));
+  vis.forEach(el=>{const id=el.id.replace("bccard-","");allSel?bcSelected.delete(id):bcSelected.add(id)});
+  renderBarcodes();
+}
+
+function bcToggleAll(checked){
+  Object.values(students).forEach(s=>checked?bcSelected.add(s.id):bcSelected.delete(s.id));
+  renderBarcodes();
+}
+
+function updateBcCount(){document.getElementById("bcSelCount").textContent=`เลือก ${bcSelected.size} คน`}
+function updateBcCols(){const c=document.getElementById("bcCols").value;document.getElementById("bcGrid").style.gridTemplateColumns=`repeat(${c},1fr)`}
+
+function printBarcodes(){
+  if(!bcSelected.size){toast("กรุณาเลือกนักเรียนก่อนพิมพ์","err");return}
+  document.querySelectorAll(".bc-card").forEach(el=>{if(!el.classList.contains("selected"))el.style.display="none"});
+  window.print();
+  document.querySelectorAll(".bc-card").forEach(el=>el.style.display="");
+}
+
+// KEYBOARD
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){clearScan();["addModal","editModal","importModal","quickBarcodeModal"].forEach(closeModal)}
+});
+document.getElementById("addModal").addEventListener("keydown",e=>{if(e.key==="Enter")addStudent()});
+document.getElementById("editModal").addEventListener("keydown",e=>{if(e.key==="Enter")saveEdit()});
+
+// INIT
+load();seedDemo();
+// seed demo assignment if none
+if(!Object.keys(assignments).length){
+  const aid=genId();
+  assignments[aid]={id:aid,name:"งานชิ้นที่ 1: รายงานกลุ่ม",maxScore:100,weight:20,desc:"ส่งภายใน 28 มี.ค. 2568",criteria:[
+    {name:"ความถูกต้องของเนื้อหา",max:30},
+    {name:"การวิเคราะห์และความคิดสร้างสรรค์",max:25},
+    {name:"การนำเสนอและรูปแบบ",max:20},
+    {name:"ความสมบูรณ์ของงาน",max:15},
+    {name:"ส่งตรงเวลา",max:10}
+  ]};
+  save();
+}
+updateStats();populateFilters();renderTable();populateAssignmentSelect();updateSidebarProfile();initCloudUI();
+(function(){const el=document.getElementById("scanDate");if(el)el.value=new Date().toISOString().slice(0,10)})();
+</script>
+</body>
+</html>
