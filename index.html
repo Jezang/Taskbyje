@@ -884,7 +884,11 @@ function goto(page){
   document.querySelectorAll(".nav-item")[map.indexOf(page)]?.classList.add("active");
   if(page==="students"){populateFilters();renderTable()}
   if(page==="summary"){populateFilters();renderSummary()}
-  if(page==="barcodes"){populateFilters();renderBarcodes()}
+  if(page==="barcodes"){
+    populateFilters();
+    // small delay ensures DOM is ready and dropdowns are populated
+    setTimeout(renderBarcodes, 30);
+  }
   if(page==="settings")renderSettings();
 }
 
@@ -1742,17 +1746,28 @@ function renderBarcodes(){
   const rm=(document.getElementById("bc-flt-room")?.value||"").toLowerCase();
   const su=(document.getElementById("bc-flt-subject")?.value||"").toLowerCase();
   const grouped=document.getElementById("bcGroupBy")?.checked;
-  const size=parseInt(document.getElementById("bcSize")?.value==="เล็ก"?80:document.getElementById("bcSize")?.value==="ใหญ่"?160:120);
+  const sizeVal=document.getElementById("bcSize")?.value||"2";
+  const sizeNum=parseFloat(sizeVal)||2; // barcode width multiplier
   const bcType=document.getElementById("bcType")?.value||"qr";
+  const canvasPx=bcType==="code128"?200:120; // canvas pixel size
   const grid=document.getElementById("bcGrid"),empty=document.getElementById("bcEmpty");
 
-  let all=Object.values(students).filter(s=>
+  const allStudents=Object.values(students);
+  // if no students at all show empty
+  if(!allStudents.length){grid.innerHTML="";empty.style.display="block";return}
+
+  // filter — if dropdown is blank/not populated, show ALL
+  let all=allStudents.filter(s=>
     (!lv||((s.level||"").toLowerCase()===lv))&&
     (!rm||((s.room||"").toLowerCase()===rm))&&
     (!su||((s.subject||"").toLowerCase()===su))
   ).sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999));
 
-  if(!all.length){grid.innerHTML="";empty.style.display="block";return}
+  // fallback: if filter removed everyone, show all (happens when dropdowns not populated yet)
+  if(!all.length && (lv||rm||su)){
+    all=allStudents.sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999));
+  }
+
   empty.style.display="none";
 
   const canvasW = bcType==="code128" ? 200 : 120;
