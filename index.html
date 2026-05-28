@@ -728,7 +728,7 @@ tbody tr:hover td{background:#f5f3ff}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toastEl"></div>
 
 <script>
 // ===== DATA =====
@@ -743,7 +743,7 @@ let criteria = [
 let settings = {teacher:"",school:"",dept:"",term:"1/2568"};
 let currentId = null;
 let importBuffer = [];
-let bcSelected = new Set();
+var bcSelected = new Set();
 
 // ASSIGNMENTS
 let assignments = {}; // id -> {id, name, maxScore, weight, desc, criteria:[{name,max}]}
@@ -754,7 +754,7 @@ function genId(){ return Date.now().toString(36)+Math.random().toString(36).slic
 
 // TOAST NOTIFICATION
 function toast(msg,type="ok"){
-  const el=document.getElementById("toast");
+  const el=document.getElementById("toastEl");
   if(!el)return;
   el.textContent=msg;
   el.className="toast "+(type==="err"?"err":"ok");
