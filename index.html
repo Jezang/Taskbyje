@@ -743,6 +743,7 @@ let criteria = [
 let settings = {teacher:"",school:"",dept:"",term:"1/2568"};
 let currentId = null;
 let importBuffer = [];
+let bcSelected = new Set();
 
 // ASSIGNMENTS
 let assignments = {}; // id -> {id, name, maxScore, weight, desc, criteria:[{name,max}]}
@@ -750,6 +751,18 @@ let currentAssignmentId = null; // which assignment is selected in scan page
 let assignTempCriteria = []; // temp while editing in modal
 
 function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+// TOAST NOTIFICATION
+function toast(msg,type="ok"){
+  const el=document.getElementById("toast");
+  if(!el)return;
+  el.textContent=msg;
+  el.className="toast "+(type==="err"?"err":"ok");
+  void el.offsetWidth;
+  el.classList.add("show");
+  clearTimeout(el._t);
+  el._t=setTimeout(()=>el.classList.remove("show"),2800);
+}
 
 // Active criteria = from selected assignment, or global criteria
 function activeCriteria(){ return currentAssignmentId && assignments[currentAssignmentId] ? assignments[currentAssignmentId].criteria : criteria; }
@@ -1593,8 +1606,6 @@ function clearAllGrades(){if(!confirm("ล้างคะแนนทั้ง�
 function clearAllStudents(){if(!confirm("ลบนักเรียนทั้งหมด?"))return;students={};save();updateStats();populateFilters();renderTable();toast("ลบทั้งหมดแล้ว")}
 
 // BARCODES
-let bcSelected=new Set();
-
 function renderBarcodes(){
   const lv=(document.getElementById("bc-flt-level")?.value||"").trim().toLowerCase();
   const rm=(document.getElementById("bc-flt-room")?.value||"").trim().toLowerCase();
