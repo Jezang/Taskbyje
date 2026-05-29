@@ -191,8 +191,8 @@ tbody tr:hover td{background:#f5f3ff}
 .mono{font-family:'IBM Plex Mono',monospace;font-size:13px}
 
 /* MODAL */
-.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(79,70,229,0.15);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}
-.modal-overlay.open{display:flex}
+.modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(79,70,229,0.15);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;pointer-events:none}
+.modal-overlay.open{display:flex;pointer-events:auto}
 .modal{background:#fff;border:1.5px solid #c4b5fd;border-radius:var(--radius);padding:28px;width:460px;max-height:90vh;overflow-y:auto;animation:slide-up .2s ease;box-shadow:0 20px 60px rgba(99,102,241,0.2)}
 .modal-title{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text)}
 .form-group{margin-bottom:14px}
@@ -633,7 +633,7 @@ tbody tr:hover td{background:#f5f3ff}
 </div>
 
 <!-- MODALS -->
-<div class="modal-overlay" id="addModal">
+<div class="modal-overlay" id="addModal" onclick="if(event.target===this)closeModal('addModal')">
   <div class="modal">
     <div class="modal-title">➕ เพิ่มนักเรียนใหม่</div>
     <div class="form-row">
@@ -667,7 +667,7 @@ tbody tr:hover td{background:#f5f3ff}
   </div>
 </div>
 
-<div class="modal-overlay" id="editModal">
+<div class="modal-overlay" id="editModal" onclick="if(event.target===this)closeModal('editModal')">
   <div class="modal">
     <div class="modal-title">✏️ แก้ไขข้อมูลนักเรียน</div>
     <input type="hidden" id="edit-id">
@@ -698,7 +698,7 @@ tbody tr:hover td{background:#f5f3ff}
   </div>
 </div>
 
-<div class="modal-overlay" id="importModal">
+<div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeModal('importModal')">
   <div class="modal" style="width:500px">
     <div class="modal-title">📂 นำเข้าจาก CSV</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:12px">
@@ -723,7 +723,7 @@ tbody tr:hover td{background:#f5f3ff}
   </div>
 </div>
 
-<div class="modal-overlay" id="assignmentModal">
+<div class="modal-overlay" id="assignmentModal" onclick="if(event.target===this)closeModal('assignmentModal')">
   <div class="modal" style="width:540px">
     <div class="modal-title" id="assignmentModalTitle">📋 สร้างงานใหม่</div>
     <input type="hidden" id="assign-edit-id">
@@ -785,7 +785,7 @@ tbody tr:hover td{background:#f5f3ff}
 </div>
 
 <!-- QUICK BARCODE MODAL -->
-<div class="modal-overlay" id="quickBarcodeModal">
+<div class="modal-overlay" id="quickBarcodeModal" onclick="if(event.target===this)closeModal('quickBarcodeModal')">
   <div class="modal" style="width:340px;text-align:center">
     <div class="modal-title" style="text-align:left">🏷️ บาร์โค้ดนักเรียน</div>
     <div id="qbcInfo" style="font-size:13px;color:var(--text2);margin-bottom:14px;text-align:left"></div>
@@ -803,7 +803,7 @@ tbody tr:hover td{background:#f5f3ff}
 </div>
 
 <!-- EXPORT FILTER MODAL -->
-<div class="modal-overlay" id="exportModal">
+<div class="modal-overlay" id="exportModal" onclick="if(event.target===this)closeModal('exportModal')">
   <div class="modal" style="width:480px">
     <div class="modal-title">📥 Export Excel</div>
     <div style="font-size:13px;color:var(--text2);margin-bottom:16px">เลือกข้อมูลที่ต้องการ Export</div>
