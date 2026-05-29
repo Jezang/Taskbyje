@@ -257,35 +257,46 @@ tbody tr:hover td{background:#f5f3ff}
 }
 
 @media print{
-  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body,html{margin:0;padding:0;background:#fff!important}
-  .app,.sidebar,.page-header,.bc-controls,.no-print,.modal-overlay{display:none!important}
-  .main{margin-left:0!important;padding:0!important}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;box-sizing:border-box!important}
+  body,html{margin:0!important;padding:0!important;background:#fff!important;width:210mm!important}
+  /* hide everything except print overlay */
+  body>*:not(#printOverlay){display:none!important}
   #printOverlay{
-    display:block!important;position:static!important;
-    padding:5mm!important;overflow:visible!important;background:#fff!important;
+    display:block!important;
+    position:static!important;
+    width:210mm!important;
+    min-height:297mm!important;
+    padding:8mm 8mm 8mm 8mm!important;
+    background:#fff!important;
+    overflow:visible!important;
   }
   .no-print-overlay{display:none!important}
-  #printGrid{gap:2mm!important;align-items:start!important}
+  #printGrid{
+    width:100%!important;
+    gap:3mm!important;
+    align-items:stretch!important;
+  }
   .print-card{
-    border:0.5px solid #aaa!important;
-    border-radius:2px!important;
+    border:0.5px solid #bbb!important;
+    border-radius:2mm!important;
     padding:2mm!important;
     break-inside:avoid!important;
     page-break-inside:avoid!important;
     background:#fff!important;
     text-align:center!important;
     box-shadow:none!important;
-    overflow:visible!important;
     display:flex!important;
     flex-direction:column!important;
     align-items:center!important;
+    justify-content:center!important;
+    gap:1mm!important;
   }
   .print-card canvas{
     display:block!important;
     margin:0 auto!important;
-    max-width:100%!important;
   }
+  .print-card div{line-height:1.2!important}
+  @page{size:A4 portrait;margin:0}
 }
 </style>
 </head>
@@ -713,21 +724,45 @@ tbody tr:hover td{background:#f5f3ff}
 </div>
 
 <div class="modal-overlay" id="assignmentModal">
-  <div class="modal" style="width:520px">
+  <div class="modal" style="width:540px">
     <div class="modal-title" id="assignmentModalTitle">📋 สร้างงานใหม่</div>
     <input type="hidden" id="assign-edit-id">
     <div class="form-group">
       <label class="form-label">ชื่องาน *</label>
       <input class="form-input" id="assign-name" placeholder="เช่น งานชิ้นที่ 1: รายงานกลุ่ม">
     </div>
+
+    <!-- scope -->
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;margin-top:4px">📌 กำหนดขอบเขต (ว่างหมายถึงทุกคน)</div>
+    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="form-group">
+        <label class="form-label">ชั้น</label>
+        <select class="form-select" id="assign-level">
+          <option value="">ทุกชั้น</option>
+          <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+          <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+          <option>ป.1</option><option>ป.2</option><option>ป.3</option>
+          <option>ป.4</option><option>ป.5</option><option>ป.6</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ห้อง</label>
+        <input class="form-input" id="assign-room" placeholder="เช่น 1, 2 (ว่าง=ทุกห้อง)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">วิชา</label>
+        <input class="form-input" id="assign-subject" placeholder="เช่น ภาษาอังกฤษ" list="subject-list">
+      </div>
+    </div>
+
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">คะแนนเต็ม *</label>
         <input class="form-input" id="assign-maxscore" type="number" min="1" max="1000" placeholder="100" oninput="onAssignMaxChange()">
       </div>
       <div class="form-group">
-        <label class="form-label">น้ำหนัก / สัดส่วน</label>
-        <input class="form-input" id="assign-weight" type="number" min="0" max="100" placeholder="เช่น 20 (%)">
+        <label class="form-label">น้ำหนัก / สัดส่วน (%)</label>
+        <input class="form-input" id="assign-weight" type="number" min="0" max="100" placeholder="เช่น 20">
       </div>
     </div>
     <div class="form-group">
@@ -741,7 +776,7 @@ tbody tr:hover td{background:#f5f3ff}
       </div>
       <button class="btn" style="padding:6px 12px;font-size:13px" onclick="addAssignCriterion()">+ เพิ่มเกณฑ์</button>
     </div>
-    <div id="assignCriteriaEditor" style="display:flex;flex-direction:column;gap:7px;max-height:260px;overflow-y:auto;margin-bottom:16px"></div>
+    <div id="assignCriteriaEditor" style="display:flex;flex-direction:column;gap:7px;max-height:220px;overflow-y:auto;margin-bottom:16px"></div>
     <div class="btn-row">
       <button class="btn" onclick="closeModal('assignmentModal')">ยกเลิก</button>
       <button class="btn btn-primary" onclick="saveAssignment()">บันทึกงาน</button>
@@ -763,6 +798,50 @@ tbody tr:hover td{background:#f5f3ff}
     <div class="btn-row" style="justify-content:center">
       <button class="btn" onclick="closeModal('quickBarcodeModal')">ปิด</button>
       <button class="btn btn-primary" onclick="printQuickBarcode()">🖨️ พิมพ์</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT FILTER MODAL -->
+<div class="modal-overlay" id="exportModal">
+  <div class="modal" style="width:480px">
+    <div class="modal-title">📥 Export Excel</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:16px">เลือกข้อมูลที่ต้องการ Export</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="form-group"><label class="form-label">ชั้น</label>
+        <select class="form-select" id="exp-level" onchange="updateExpPreview()"><option value="">ทุกชั้น</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">ห้อง</label>
+        <select class="form-select" id="exp-room" onchange="updateExpPreview()"><option value="">ทุกห้อง</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">วิชา</label>
+        <select class="form-select" id="exp-subject" onchange="updateExpPreview()"><option value="">ทุกวิชา</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">งาน</label>
+        <select class="form-select" id="exp-assignment" onchange="updateExpPreview()"><option value="">ทุกงาน / คะแนนล่าสุด</option></select>
+      </div>
+    </div>
+    <div style="padding:10px 12px;background:var(--blue-dim);border-radius:var(--radius-sm);border:1px solid #c4b5fd;margin-bottom:14px">
+      <div style="font-size:13px;color:var(--accent);font-weight:600">จะ Export: <span id="expPreviewCount">0</span> คน</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:2px" id="expPreviewDetail"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">แยก Sheet ตาม</label>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:6px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="exp-split-room" style="accent-color:var(--accent)" onchange="updateExpPreview()"> แยกห้อง
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="exp-split-subject" style="accent-color:var(--accent)" onchange="updateExpPreview()"> แยกวิชา
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="exp-split-assignment" style="accent-color:var(--accent)" onchange="updateExpPreview()"> แยกงาน
+        </label>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="closeModal('exportModal')">ยกเลิก</button>
+      <button class="btn btn-success" onclick="doExportExcel()">📥 Export</button>
     </div>
   </div>
 </div>
@@ -913,17 +992,30 @@ function renderAssignmentInfo(){
   const box=document.getElementById("assignmentInfo");
   if(!currentAssignmentId||!assignments[currentAssignmentId]){box.style.display="none";return}
   const a=assignments[currentAssignmentId];
+  // count matching students
+  const norm=s=>(s||"").trim().toLowerCase();
+  const matched=Object.values(students).filter(s=>
+    (!a.level||norm(s.level)===norm(a.level))&&
+    (!a.room||norm(s.room)===norm(a.room))&&
+    (!a.subject||norm(s.subject)===norm(a.subject))
+  ).length;
+  const scopeChips=[
+    a.level?`<span class="chip">🎓 ${a.level}</span>`:"",
+    a.room?`<span class="chip">🚪 ห้อง ${a.room}</span>`:"",
+    a.subject?`<span class="chip">📚 ${a.subject}</span>`:"",
+  ].filter(Boolean).join("");
   box.style.display="flex";
   box.innerHTML=`
     <span style="font-size:18px">📋</span>
     <div style="flex:1">
       <div style="font-weight:700;font-size:15px;color:var(--accent)">${a.name}</div>
+      ${scopeChips?`<div class="meta-chips" style="margin-top:4px">${scopeChips}</div>`:""}
       ${a.desc?`<div style="font-size:12px;color:var(--text2);margin-top:2px">${a.desc}</div>`:""}
     </div>
     <div style="display:flex;gap:14px;flex-wrap:wrap">
       <div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--accent)">${a.maxScore}</div><div style="font-size:11px;color:var(--text2)">คะแนนเต็ม</div></div>
       ${a.weight?`<div style="text-align:center"><div style="font-size:18px;font-weight:700;color:#7c3aed">${a.weight}%</div><div style="font-size:11px;color:var(--text2)">น้ำหนัก</div></div>`:""}
-      <div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--green)">${a.criteria.length}</div><div style="font-size:11px;color:var(--text2)">เกณฑ์</div></div>
+      <div style="text-align:center"><div style="font-size:18px;font-weight:700;color:var(--green)">${matched}</div><div style="font-size:11px;color:var(--text2)">นักเรียน</div></div>
     </div>`;
 }
 
@@ -934,6 +1026,9 @@ function openNewAssignment(){
   document.getElementById("assign-maxscore").value="100";
   document.getElementById("assign-weight").value="";
   document.getElementById("assign-desc").value="";
+  document.getElementById("assign-level").value="";
+  document.getElementById("assign-room").value="";
+  document.getElementById("assign-subject").value="";
   assignTempCriteria=[
     {name:"ความถูกต้องของเนื้อหา",max:30},
     {name:"ความคิดสร้างสรรค์",max:30},
@@ -954,6 +1049,9 @@ function openEditAssignment(){
   document.getElementById("assign-maxscore").value=a.maxScore;
   document.getElementById("assign-weight").value=a.weight||"";
   document.getElementById("assign-desc").value=a.desc||"";
+  document.getElementById("assign-level").value=a.level||"";
+  document.getElementById("assign-room").value=a.room||"";
+  document.getElementById("assign-subject").value=a.subject||"";
   assignTempCriteria=JSON.parse(JSON.stringify(a.criteria));
   renderAssignCriteriaEditor();
   document.getElementById("assignmentModal").classList.add("open");
@@ -1011,25 +1109,34 @@ function saveAssignment(){
   const maxScore=parseInt(document.getElementById("assign-maxscore").value)||0;
   const weight=parseInt(document.getElementById("assign-weight").value)||0;
   const desc=document.getElementById("assign-desc").value.trim();
+  const level=document.getElementById("assign-level").value;
+  const room=document.getElementById("assign-room").value.trim();
+  const subject=document.getElementById("assign-subject").value.trim();
   if(!name){toast("กรุณาใส่ชื่องาน","err");return}
   if(!maxScore){toast("กรุณาระบุคะแนนเต็ม","err");return}
-  // collect criteria
   const ac=assignTempCriteria.map((_,i)=>({
     name:document.getElementById("ac-name-"+i)?.value.trim()||"เกณฑ์ "+(i+1),
     max:parseInt(document.getElementById("ac-max-"+i)?.value)||0
   }));
   const sum=ac.reduce((a,b)=>a+b.max,0);
-  if(sum!==maxScore){toast(`รวมเกณฑ์ (${sum}) ≠ คะแนนเต็ม (${maxScore}) — กรุณาแก้ไข`,"err");return}
+  if(sum!==maxScore){toast(`รวมเกณฑ์ (${sum}) ≠ คะแนนเต็ม (${maxScore}) — กรุณาแก้ไข`,"err");return;}
   const editId=document.getElementById("assign-edit-id").value;
   const id=editId||genId();
-  assignments[id]={id,name,maxScore,weight,desc,criteria:ac};
+  assignments[id]={id,name,maxScore,weight,desc,level,room,subject,criteria:ac};
+  // count matching students
+  const norm=s=>s.trim().toLowerCase();
+  const matched=Object.values(students).filter(s=>
+    (!level||norm(s.level||"")===norm(level))&&
+    (!room||norm(s.room||"")===norm(room))&&
+    (!subject||norm(s.subject||"")===norm(subject))
+  ).length;
   save();closeModal("assignmentModal");populateAssignmentSelect();
   document.getElementById("assignmentSelect").value=id;
   currentAssignmentId=id;
   document.getElementById("editAssignBtn").style.display="";
   document.getElementById("delAssignBtn").style.display="";
   renderAssignmentInfo();
-  toast("✓ บันทึกงาน '"+name+"' แล้ว");
+  toast(`✓ บันทึกงาน '${name}' · ตรงกับนักเรียน ${matched} คน`);
 }
 
 // SCAN
@@ -1576,67 +1683,162 @@ document.getElementById("importZone").addEventListener("dragover",e=>e.preventDe
 document.getElementById("importZone").addEventListener("drop",e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleCSV({files:[f]})});
 
 // EXPORT
-function exportExcel(){
-  if(!window.XLSX){toast("ไม่พบ XLSX library","err");return}
-  const wb=XLSX.utils.book_new();
-  const ac=activeCriteria();
+function exportExcel(){ openExportModal(); }
 
-  // ---- Sheet 1: คะแนนนักเรียน ----
-  // info rows at top
+function openExportModal(){
+  // populate dropdowns
+  const levels=[...new Set(Object.values(students).map(s=>s.level||"").filter(Boolean))].sort();
+  const rooms=[...new Set(Object.values(students).map(s=>s.room||"").filter(Boolean))].sort();
+  const subjects=[...new Set(Object.values(students).map(s=>s.subject||"").filter(Boolean))].sort();
+  const fill=(id,vals,def)=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.innerHTML=`<option value="">${def}</option>`+vals.map(v=>`<option>${v}</option>`).join("");
+  };
+  fill("exp-level",levels,"ทุกชั้น");
+  fill("exp-room",rooms,"ทุกห้อง");
+  fill("exp-subject",subjects,"ทุกวิชา");
+  const asgns=Object.values(assignments).sort((a,b)=>a.name.localeCompare(b.name,"th"));
+  const ael=document.getElementById("exp-assignment");
+  if(ael) ael.innerHTML='<option value="">ทุกงาน / คะแนนล่าสุด</option>'+asgns.map(a=>`<option value="${a.id}">${a.name} (${a.maxScore}คะแนน)</option>`).join("");
+  document.getElementById("exportModal").classList.add("open");
+  updateExpPreview();
+}
+
+function getExpFiltered(){
+  const lv=document.getElementById("exp-level")?.value||"";
+  const rm=document.getElementById("exp-room")?.value||"";
+  const su=document.getElementById("exp-subject")?.value||"";
+  const norm=s=>s.trim().toLowerCase();
+  return Object.values(students).filter(s=>
+    (!lv||norm(s.level||"")===norm(lv))&&
+    (!rm||norm(s.room||"")===norm(rm))&&
+    (!su||norm(s.subject||"")===norm(su))
+  ).sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999));
+}
+
+function updateExpPreview(){
+  const list=getExpFiltered();
+  const aId=document.getElementById("exp-assignment")?.value||"";
+  const aName=aId&&assignments[aId]?assignments[aId].name:"";
+  document.getElementById("expPreviewCount").textContent=list.length;
+  const parts=[];
+  const lv=document.getElementById("exp-level")?.value;
+  const rm=document.getElementById("exp-room")?.value;
+  const su=document.getElementById("exp-subject")?.value;
+  if(lv)parts.push("ชั้น "+lv);if(rm)parts.push("ห้อง "+rm);if(su)parts.push("วิชา "+su);
+  if(aName)parts.push("งาน: "+aName);
+  document.getElementById("expPreviewDetail").textContent=parts.length?parts.join(" · "):"ทั้งหมด";
+}
+
+function makeSheet(wb,list,sheetName,aId){
+  const a=aId&&assignments[aId]?assignments[aId]:null;
+  const ac=a?a.criteria:activeCriteria();
+  const maxTot=ac.reduce((s,c)=>s+c.max,0);
   const infoRows=[
     ["โรงเรียน",settings.school||"—","","ครูผู้สอน",settings.teacher||"—"],
     ["กลุ่มสาระ",settings.dept||"—","","ภาคเรียน",settings.term||"—"],
-    ["วันที่ Export",new Date().toLocaleDateString("th-TH"),"","",""],
-    [] // blank row
-  ];
-  const header=["เลขที่","รหัสนักเรียน","ชื่อ-สกุล","ชั้นเรียน","ห้อง","วิชา",
-    ...ac.map(c=>c.name+" ("+c.max+")"),
-    "คะแนนรวม","เปอร์เซ็นต์","เกรด","สถานะ","วันที่ตรวจ"];
-  const rows=Object.values(students)
-    .sort((a,b)=>(parseInt(a.no)||999)-(parseInt(b.no)||999))
-    .map((s,idx)=>{
-    const total=getTotal(s.scores),pct=getPct(s.scores);
+    a?["งาน",a.name,"","คะแนนเต็ม",a.maxScore]:[],
+    ["วันที่ Export",new Date().toLocaleDateString("th-TH"),"","",""],[]
+  ].filter(r=>r.length>0);
+  infoRows.push([]);
+  const header=["เลขที่","รหัส","ชื่อ-สกุล","ชั้น","ห้อง","วิชา",
+    ...ac.map(c=>c.name+"("+c.max+")"),
+    "รวม","เปอร์เซ็นต์","เกรด","สถานะ","วันที่ตรวจ"];
+  const rows=list.map((s,idx)=>{
+    // get scores: from specific assignment or legacy
+    let scores=null,gradedDate="",isGraded=false;
+    if(aId&&s.assignmentScores&&s.assignmentScores[aId]){
+      scores=s.assignmentScores[aId].scores;
+      gradedDate=s.assignmentScores[aId].gradedDate||"";
+      isGraded=true;
+    } else if(!aId&&s.graded){
+      scores=s.scores;gradedDate=s.gradedDate||"";isGraded=true;
+    }
+    const total=scores?scores.reduce((a,b)=>a+b,0):0;
+    const pct=scores?Math.round(total/maxTot*100):0;
     return[s.no||idx+1,s.id,s.name,s.level||"",s.room||"",s.subject||"",
-      ...(s.graded&&s.scores?s.scores:ac.map(()=>"")),
-      s.graded?total:"",s.graded?pct+"%":"",s.graded?getGrade(pct):"",
-      s.graded?"ตรวจแล้ว":"รอตรวจ",s.gradedDate||""];
+      ...(isGraded&&scores?scores:ac.map(()=>"")),
+      isGraded?total:"",isGraded?pct+"%":"",isGraded?getGrade(pct):"",
+      isGraded?"ตรวจแล้ว":"รอตรวจ",gradedDate];
   });
+  // safe sheet name: max 31 chars, no special chars
+  const safeName=sheetName.replace(/[:\\/?*\[\]]/g,"").slice(0,31)||"Sheet";
   const ws=XLSX.utils.aoa_to_sheet([...infoRows,header,...rows]);
-  ws["!cols"]=[{wch:6},{wch:14},{wch:22},{wch:8},{wch:6},{wch:16},...ac.map(()=>({wch:20})),{wch:10},{wch:10},{wch:6},{wch:10},{wch:12}];
-  // merge info cells for labels
-  ws["!merges"]=[
-    {s:{r:0,c:1},e:{r:0,c:3}},{s:{r:1,c:1},e:{r:1,c:3}},
-  ];
-  XLSX.utils.book_append_sheet(wb,ws,"คะแนนนักเรียน");
+  ws["!cols"]=[{wch:5},{wch:12},{wch:20},{wch:6},{wch:5},{wch:14},...ac.map(()=>({wch:18})),{wch:7},{wch:7},{wch:5},{wch:9},{wch:11}];
+  // check if sheet name already taken
+  let sn=safeName,ct=2;
+  while(wb.SheetNames.includes(sn)){sn=safeName.slice(0,28)+"_"+ct++;};
+  XLSX.utils.book_append_sheet(wb,ws,sn);
+}
 
-  // ---- Sheet 2: สรุปผล ----
-  const graded=Object.values(students).filter(s=>s.graded);
+function doExportExcel(){
+  if(!window.XLSX){toast("ไม่พบ XLSX library","err");return}
+  const list=getExpFiltered();
+  if(!list.length){toast("ไม่มีนักเรียนที่ตรงเงื่อนไข","err");return}
+  const aId=document.getElementById("exp-assignment")?.value||"";
+  const splitRoom=document.getElementById("exp-split-room")?.checked;
+  const splitSubject=document.getElementById("exp-split-subject")?.checked;
+  const splitAssignment=document.getElementById("exp-split-assignment")?.checked;
+
+  const wb=XLSX.utils.book_new();
+
+  if(!splitRoom&&!splitSubject&&!splitAssignment){
+    // single sheet
+    const asgns=aId?[aId]:Object.keys(assignments);
+    if(splitAssignment&&asgns.length>1){
+      asgns.forEach(aid=>{
+        const a=assignments[aid];if(!a)return;
+        makeSheet(wb,list,a.name.slice(0,25),aid);
+      });
+    } else {
+      makeSheet(wb,list,"คะแนนนักเรียน",aId);
+    }
+  } else {
+    // group by requested dimensions
+    const groupKey=s=>{
+      const parts=[];
+      if(splitRoom&&s.room) parts.push("ห้อง"+s.room);
+      if(splitSubject&&s.subject) parts.push(s.subject.slice(0,8));
+      return parts.join("_")||"รวม";
+    };
+    const groups={};
+    list.forEach(s=>{const k=groupKey(s);if(!groups[k])groups[k]=[];groups[k].push(s);});
+
+    const asgnList=splitAssignment&&!aId?Object.values(assignments):[aId?{id:aId}:{id:""}];
+    Object.entries(groups).forEach(([gk,gl])=>{
+      asgnList.forEach(a=>{
+        const aid=a?a.id:"";
+        const aLabel=aid&&assignments[aid]?("_"+assignments[aid].name.slice(0,10)):"";
+        makeSheet(wb,gl,(gk+aLabel).slice(0,31),aid);
+      });
+    });
+  }
+
+  // Summary sheet
+  const graded=list.filter(s=>s.graded);
   const avg=graded.length?Math.round(graded.reduce((s,x)=>s+getPct(x.scores),0)/graded.length):0;
   const cnt={A:0,B:0,C:0,F:0};graded.forEach(s=>cnt[getGrade(getPct(s.scores))]++);
   const ws2=XLSX.utils.aoa_to_sheet([
-    ["สรุปผลการตรวจงาน"],
-    [""],
-    ["โรงเรียน",settings.school||"—"],
-    ["ครูผู้สอน",settings.teacher||"—"],
-    ["กลุ่มสาระ / แผนก",settings.dept||"—"],
-    ["ภาคเรียน / ปีการศึกษา",settings.term||"—"],
-    ["วันที่ Export",new Date().toLocaleDateString("th-TH")],
-    [""],
-    ["จำนวนนักเรียนทั้งหมด",Object.keys(students).length],
-    ["ตรวจแล้ว",graded.length],
-    ["รอตรวจ",Object.keys(students).length-graded.length],
-    ["คะแนนเฉลี่ย",avg+"%"],
-    [""],
-    ["เกรด A (≥80%)",cnt.A],
-    ["เกรด B (70-79%)",cnt.B],
-    ["เกรด C (60-69%)",cnt.C],
-    ["ต่ำกว่า 60%",cnt.F],
+    ["สรุปผลการตรวจงาน"],[""],
+    ["โรงเรียน",settings.school||"—"],["ครูผู้สอน",settings.teacher||"—"],
+    ["กลุ่มสาระ",settings.dept||"—"],["ภาคเรียน",settings.term||"—"],[""],
+    ["นักเรียนในรายงานนี้",list.length],["ตรวจแล้ว",graded.length],
+    ["รอตรวจ",list.length-graded.length],["คะแนนเฉลี่ย",avg+"%"],[""],
+    ["เกรด A (≥80%)",cnt.A],["เกรด B (70–79%)",cnt.B],
+    ["เกรด C (60–69%)",cnt.C],["ต่ำกว่า 60%",cnt.F],
+    [""],["วันที่ Export",new Date().toLocaleDateString("th-TH")]
   ]);
-  ws2["!cols"]=[{wch:28},{wch:24}];
+  ws2["!cols"]=[{wch:26},{wch:22}];
   XLSX.utils.book_append_sheet(wb,ws2,"สรุปผล");
 
-  const fname=`คะแนน_${settings.school||"โรงเรียน"}_${settings.teacher||"ครู"}_${settings.term||""}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  closeModal("exportModal");
+  const lv=document.getElementById("exp-level")?.value||"";
+  const rm=document.getElementById("exp-room")?.value||"";
+  const fname=`คะแนน_${settings.school||"รร"}_${lv}${rm?"ห้อง"+rm:""}_${settings.term||""}_${new Date().toISOString().slice(0,10)}.xlsx`;
   XLSX.writeFile(wb,fname);
+  toast("✓ Export "+list.length+" คน สำเร็จ!");
+}
   toast("✓ Export Excel สำเร็จ!");
 }
 
@@ -1753,34 +1955,42 @@ function buildPrintCards(list){
   const cols=parseInt(document.getElementById("bcCols")?.value||4);
   const bcType=getBcType();
   const isQR=bcType==="qr";
-  // fixed canvas sizes — must be integers, not auto
-  const cW=isQR?100:190, cH=isQR?100:52;
+
+  // A4 usable width = 210mm - 16mm margins = 194mm
+  // at 96dpi: 194mm * 3.78px/mm ≈ 733px, split by cols minus gaps
+  const gapPx=11; // ~3mm
+  const usableW=Math.floor((733-(gapPx*(cols-1)))/cols);
+  const cW=Math.min(usableW-8, isQR?120:usableW-8);
+  const cH=isQR?cW:Math.round(cW*0.32);
 
   const grid=document.getElementById("printGrid");
   grid.style.gridTemplateColumns=`repeat(${cols},1fr)`;
   grid.innerHTML=list.map(s=>`
     <div class="print-card">
-      <canvas id="pcanvas-${s.id}" width="${cW}" height="${cH}" style="width:${cW}px;height:${cH}px;display:block;margin:0 auto"></canvas>
-      <div style="font-size:11px;font-weight:700;margin-top:3px;word-break:break-word;line-height:1.3">${s.no?s.no+". ":""}${s.name}</div>
-      <div style="font-size:10px;color:#555;margin-top:1px">${s.id}</div>
-      <div style="font-size:9px;color:#888">${[s.level,s.room?"ห้อง "+s.room:"",s.subject].filter(Boolean).join(" · ")}</div>
+      <canvas id="pcanvas-${s.id}" width="${cW}" height="${cH}"
+        style="width:${cW}px;height:${cH}px;display:block;margin:0 auto;image-rendering:pixelated"></canvas>
+      <div style="font-size:${cols<=3?11:9}px;font-weight:700;margin-top:2px;word-break:break-word;line-height:1.3;max-width:${cW+8}px">
+        ${s.no?s.no+". ":""}${s.name}
+      </div>
+      <div style="font-size:${cols<=3?10:8}px;color:#444;font-family:monospace">${s.id}</div>
+      <div style="font-size:8px;color:#888">${[s.level,s.room?"ห้อง "+s.room:"",s.subject].filter(Boolean).join(" · ")}</div>
     </div>`).join("");
 
   document.getElementById("printCount").textContent=list.length;
   document.getElementById("printOverlay").style.display="block";
-  // disable print button until all drawn
-  const printBtn=document.getElementById("printOverlayBtn");
-  if(printBtn){printBtn.disabled=true;printBtn.textContent="⏳ กำลังสร้างบาร์โค้ด...";}
 
-  // draw all canvases, then enable print button
-  const delay=Math.max(120, list.length*3); // scale with count
+  const printBtn=document.getElementById("printOverlayBtn");
+  if(printBtn){printBtn.disabled=true;printBtn.textContent="⏳ กำลังสร้าง...";}
+
+  // draw all, delay scales with count so all finish before button enables
+  const delay=Math.max(200, list.length*5);
   setTimeout(()=>{
     list.forEach(s=>{
       const canvas=document.getElementById("pcanvas-"+s.id);
       if(!canvas)return;
       try{
         if(isQR) QRCode.draw(canvas,s.id,cW);
-        else Code128.draw(canvas,s.id,cH-2);
+        else Code128.draw(canvas,s.id,cH);
       }catch(e){console.warn("draw error",s.id,e);}
     });
     if(printBtn){printBtn.disabled=false;printBtn.textContent="🖨️ พิมพ์";}
@@ -1814,7 +2024,7 @@ function printAllBarcodes(){
 
 // KEYBOARD
 document.addEventListener("keydown",e=>{
-  if(e.key==="Escape"){clearScan();["addModal","editModal","importModal","quickBarcodeModal"].forEach(closeModal)}
+  if(e.key==="Escape"){clearScan();["addModal","editModal","importModal","quickBarcodeModal","assignmentModal","exportModal"].forEach(closeModal)}
 });
 document.getElementById("addModal").addEventListener("keydown",e=>{if(e.key==="Enter")addStudent()});
 document.getElementById("editModal").addEventListener("keydown",e=>{if(e.key==="Enter")saveEdit()});
